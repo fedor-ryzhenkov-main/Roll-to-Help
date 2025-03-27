@@ -3,9 +3,15 @@ import { notFound } from 'next/navigation'
 import prisma from '../../lib/db'
 import { formatDate, formatCurrency } from '../../lib/utils'
 
-export default async function EventPage({ params }: { params: { id: string } }) {
-  const { id } = params
-  const eventId = parseInt(id)
+// Correct type definition for Next.js App Router page props
+type PageProps = {
+  params: {
+    id: string;
+  };
+}
+
+export default async function EventPage({ params }: PageProps) {
+  const eventId = parseInt(params.id)
   
   if (isNaN(eventId)) {
     return notFound()
