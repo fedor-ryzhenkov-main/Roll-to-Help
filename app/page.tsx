@@ -3,6 +3,9 @@ import Image from 'next/image'
 import prisma from './lib/db'
 import { format } from 'date-fns'
 
+// Force dynamic rendering - prevents build-time database access
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   // Get active event with details
   const activeEvent = await prisma.event.findFirst({

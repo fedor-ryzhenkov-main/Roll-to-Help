@@ -3,6 +3,9 @@ import prisma from '../lib/db'
 import GameCard from '../components/GameCard'
 import { formatDate } from '../lib/utils'
 
+// Force dynamic rendering - prevents build-time database access
+export const dynamic = 'force-dynamic';
+
 export default async function GamesPage() {
   // Get the active event
   const event = await prisma.event.findFirst({
