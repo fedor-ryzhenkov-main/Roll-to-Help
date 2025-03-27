@@ -1,12 +1,13 @@
 # Deployment Guide - Digital Ocean
 
-This guide will help you deploy the Tabletop Charity Event website to Digital Ocean's App Platform.
+This guide will help you deploy the Roll to Help website and Telegram bot to Digital Ocean's App Platform.
 
 ## Prerequisites
 
 - A [Digital Ocean](https://www.digitalocean.com/) account
 - Your project code pushed to a GitHub repository
 - Node.js 18+ installed locally
+- A Telegram bot created with [BotFather](https://t.me/botfather)
 
 ## Deployment Steps
 
@@ -31,14 +32,16 @@ Ensure your code is pushed to a GitHub repository and includes:
 - Select the "Web Service" type for your app
 - Choose the Node.js runtime
 - Set the build command to: `npm run prepare-deploy`
-- Set the run command to: `npm start`
-- Choose an appropriate plan (Starter or Basic tier should be sufficient)
+- Set the run command to: `npm run start:prod`
+- Choose an appropriate plan (Basic tier is recommended for the combined app and bot)
 
 #### Environment Variables
 Add the following environment variables:
 - `DATABASE_URL`: Your PostgreSQL connection string (you'll get this in step 4)
+- `TELEGRAM_BOT_TOKEN`: Your Telegram bot token from BotFather
 - `NEXTAUTH_SECRET`: Generate a secure random string (use `openssl rand -base64 32`)
 - `NEXTAUTH_URL`: The URL of your deployed app (e.g., `https://your-app-name.ondigitalocean.app`)
+- `NEXT_PUBLIC_APP_URL`: Same as NEXTAUTH_URL, used by the bot for verification links
 - `NODE_ENV`: Set to `production`
 
 ### 4. Add a Database
@@ -55,36 +58,39 @@ Add the following environment variables:
 2. Click "Launch App"
 3. Wait for the build and deployment to complete
 
-### 6. Run Database Migrations
-
-After deployment, you need to run your database migrations:
-
-1. In the App Platform, go to your app
-2. Click on the "Console" tab
-3. Run: `npx prisma migrate deploy`
-4. Optionally run: `npm run db:seed` to populate initial data
-
-### 7. Verify Deployment
+### 6. Verify Deployment
 
 - Visit your app URL to confirm it's working
 - Check the logs for any errors
-- Test all functionality (browsing games, placing bids, etc.)
+- Test the Telegram bot by sending `/start` to your bot
+- Test all functionality (browsing games, placing bids, generating verification codes, etc.)
 
-## Troubleshooting
+## Telegram Bot Operations
 
-### Common Issues
+The Telegram bot runs as a separate process alongside your web application using PM2. This ensures the bot stays online even during website redeployments or restarts.
 
-1. **Database Connection Issues**
-   - Verify your `DATABASE_URL` is correctly formatted
-   - Make sure your database allows connections from your app (check firewall settings)
+### Bot Architecture
 
-2. **Build Failures**
-   - Check the build logs for errors
-   - Ensure all dependencies are properly listed in package.json
+- The bot uses the Telegraf library to interact with Telegram's API
+- It runs in polling mode, which is more reliable for most deployments
+- The bot automatically runs database migrations on startup
+- PM2 ensures the bot process restarts if it crashes
 
-3. **Runtime Errors**
-   - Check the app logs for details
-   - Verify all environment variables are set correctly
+### Testing the Bot
+
+1. Find your bot on Telegram (using the username you registered with BotFather)
+2. Send `/start` to begin interacting with the bot
+3. Test the verification process:
+   - Generate a code on the website
+   - Send the code to the bot
+   - Verify that your account is linked
+
+### Troubleshooting Bot Issues
+
+If the bot isn't responding:
+1. Check the app logs in Digital Ocean
+2. Verify the `TELEGRAM_BOT_TOKEN` is correct
+3. Make sure the bot process is running (you should see both processes in the logs)
 
 ## Maintenance
 
@@ -92,6 +98,7 @@ After deployment, you need to run your database migrations:
 
 1. Push changes to your GitHub repository
 2. Digital Ocean will automatically rebuild and deploy
+3. Both the website and bot will be updated and restarted
 
 ### Database Backups
 
@@ -102,6 +109,7 @@ Set up automatic backups for your PostgreSQL database in the Digital Ocean dashb
 - [Digital Ocean App Platform Documentation](https://docs.digitalocean.com/products/app-platform/)
 - [Next.js Deployment Documentation](https://nextjs.org/docs/deployment)
 - [Prisma Deployment Guide](https://www.prisma.io/docs/guides/deployment/deployment)
+- [Telegraf Documentation](https://telegraf.js.org/)
 
 ## Support
 
