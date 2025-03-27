@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* Custom additional styles beyond Tailwind */
+:root {
+  --color-primary: #9333ea;   /* Purple 600 */
+  --color-secondary: #ea580c; /* Orange 600 */
+  --color-bg: #fffbeb;        /* Amber 50 */
+  --color-text: #4b5563;      /* Gray 600 */
+  --color-heading: #581c87;   /* Purple 900 */
+}
+
+body {
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-heading);
+}
+
+button:focus, a:focus, input:focus {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+} 

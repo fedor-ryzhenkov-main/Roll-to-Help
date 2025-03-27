@@ -1,0 +1,54 @@
+{
+  "name": "roll-to-help",
+  "version": "1.0.0",
+  "description": "A lightweight web application for hosting charity tabletop gaming events where users can bid on game seats to support charity.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "npx prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy",
+    "db:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
+    "db:setup": "npm run prisma:migrate && npm run db:seed",
+    "prepare-deploy": "npm run prisma:generate && npm run build"
+  },
+  "keywords": [
+    "charity",
+    "tabletop",
+    "gaming",
+    "auction",
+    "ttrpg"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@headlessui/react": "^2.2.0",
+    "@hookform/resolvers": "^4.1.3",
+    "@prisma/client": "^6.5.0",
+    "@types/node": "^22.13.13",
+    "@types/react": "^19.0.12",
+    "classnames": "^2.5.1",
+    "date-fns": "^3.6.0",
+    "next": "^15.2.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.54.2",
+    "typescript": "^5.8.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.16",
+    "autoprefixer": "^10.4.21",
+    "eslint": "9.23.0",
+    "eslint-config-next": "15.2.4",
+    "postcss": "^8.5.3",
+    "prisma": "^6.5.0",
+    "tailwindcss": "^4.0.16",
+    "ts-node": "^10.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
