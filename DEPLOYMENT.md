@@ -37,7 +37,6 @@ Ensure your code is pushed to a GitHub repository and includes:
 #### Environment Variables
 Add the following environment variables:
 - `DATABASE_URL`: Your PostgreSQL connection string (you'll get this in step 4)
-- `DATABASE_PROVIDER`: Set to `postgresql`
 - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token from BotFather
 - `NEXTAUTH_SECRET`: Generate a secure random string (use `openssl rand -base64 32`)
 - `NEXTAUTH_URL`: The URL of your deployed app (e.g., `https://your-app-name.ondigitalocean.app`)
@@ -81,18 +80,11 @@ The `server.js` file handles:
 3. Initializing the Telegram bot in polling mode
 4. Graceful shutdown of both services when needed
 
-## Database Provider Configuration
+## Database Configuration
 
-The application uses the `DATABASE_PROVIDER` environment variable to determine which database to use:
+The application uses PostgreSQL as its database provider. For local development, you can use SQLite by modifying the schema.prisma file, but the production deployment will use PostgreSQL.
 
-- For PostgreSQL (production): Set `DATABASE_PROVIDER=postgresql`
-- For SQLite (development): Set `DATABASE_PROVIDER=sqlite`
-
-The migration script is designed to handle switching between providers automatically. When a provider switch is detected, it will:
-
-1. Detect the mismatch between the current provider in `migration_lock.toml` and the desired provider
-2. Run `prisma db push` with appropriate flags to adapt the schema safely
-3. Continue with regular migrations
+Make sure to provide the correct PostgreSQL connection string in the `DATABASE_URL` environment variable.
 
 ## Telegram Bot Operations
 
