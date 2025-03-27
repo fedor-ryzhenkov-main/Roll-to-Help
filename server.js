@@ -24,87 +24,76 @@ const app = next({ dev: process.env.NODE_ENV !== 'production' });
 const handle = app.getRequestHandler();
 const http = require('http');
 
-// Start the Telegram bot in a separate thread
-console.log('🤖 Starting Telegram bot...');
-// We'll run the bot script directly, not in a child process
-// This avoids memory issues and makes debugging easier
+// Set up the Telegram bot webhook
+console.log('🤖 Setting up Telegram bot webhook...');
 const { Telegraf } = require('telegraf');
-const { PrismaClient } = require('@prisma/client');
-
-const prisma = new PrismaClient();
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
 // Make sure we have our token
 if (!process.env.TELEGRAM_BOT_TOKEN) {
-  console.error('TELEGRAM_BOT_TOKEN is not defined in environment variables');
+  console.error('❌ TELEGRAM_BOT_TOKEN is not defined in environment variables');
   process.exit(1);
 }
 
-// Import bot functions
-const { 
-  handleVerificationCode, 
-  setupStartCommand, 
-  setupHelpCommand, 
-  setupRegisterCommand, 
-  setupMyAuctionsCommand
-} = require('./scripts/bot-functions');
+// Make sure we have our app URL
+if (!process.env.NEXT_PUBLIC_APP_URL) {
+  console.error('❌ NEXT_PUBLIC_APP_URL is not defined in environment variables');
+  console.log('⚠️ Continuing without setting webhook. Bot will be inactive.');
+}
 
-// Set up bot commands
-setupStartCommand(bot);
-setupHelpCommand(bot);
-setupRegisterCommand(bot, prisma);
-setupMyAuctionsCommand(bot, prisma);
-
-// Handle regular messages (verification codes)
-bot.on('text', async (ctx) => {
-  console.log(`Received message: ${ctx.message.text}`);
-  const text = ctx.message.text.trim();
-  
-  // Skip command messages
-  if (text.startsWith('/')) return;
-  
-  // Try to process as verification code
-  const handled = await handleVerificationCode(ctx, text, prisma);
-  
-  // If not a verification code, provide guidance
-  if (!handled) {
-    await ctx.reply('Not sure what you mean. Use /help to see available commands.');
+// Set up the bot webhook when the server starts
+async function setupWebhook() {
+  try {
+    if (!process.env.NEXT_PUBLIC_APP_URL) return;
+    
+    const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/telegram-webhook`;
+    
+    // Clear any existing webhook
+    await bot.telegram.deleteWebhook();
+    
+    // Set the webhook with a 5-second timeout
+    await Promise.race([
+      bot.telegram.setWebhook(webhookUrl),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Webhook setup timeout')), 5000))
+    ]);
+    
+    console.log(`✅ Telegram webhook set to: ${webhookUrl}`);
+    
+    // Verify the webhook is set correctly
+    const webhookInfo = await bot.telegram.getWebhookInfo();
+    console.log('ℹ️ Webhook info:', JSON.stringify(webhookInfo, null, 2));
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to set up webhook:', error.message);
+    
+    // Try again in 30 seconds
+    console.log('⏳ Will retry webhook setup in 30 seconds...');
+    setTimeout(setupWebhook, 30000);
+    
+    return false;
   }
-});
-
-// Log errors
-bot.catch((err, ctx) => {
-  console.error(`Bot error:`, err);
-  ctx.reply('Sorry, something went wrong. Please try again later.');
-});
+}
 
 // Prepare the app and server
-app.prepare().then(() => {
+app.prepare().then(async () => {
   const server = http.createServer((req, res) => {
     handle(req, res);
   });
   
-  server.listen(PORT, (err) => {
+  server.listen(PORT, async (err) => {
     if (err) throw err;
     console.log(`✅ Ready on http://localhost:${PORT}`);
+    
+    // Set up the webhook after the server is running
+    await setupWebhook();
   });
-  
-  // Start the bot
-  bot.launch()
-    .then(() => {
-      console.log('✅ Telegram bot started in polling mode!');
-    })
-    .catch(err => {
-      console.error('❌ Failed to start bot:', err);
-    });
   
   // Enable graceful shutdown
   const shutdown = () => {
     console.log('Shutting down server...');
     server.close(() => {
       console.log('HTTP server closed');
-      bot.stop('SIGINT');
-      console.log('Bot stopped');
       process.exit(0);
     });
   };

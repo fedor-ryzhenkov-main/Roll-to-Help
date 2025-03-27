@@ -77,8 +77,8 @@ This deployment uses a combined server architecture where the Next.js web applic
 The `server.js` file handles:
 1. Running database migrations on startup
 2. Starting the Next.js web application
-3. Initializing the Telegram bot in polling mode
-4. Graceful shutdown of both services when needed
+3. Setting up the Telegram bot webhook
+4. Graceful shutdown when needed
 
 ## Database Configuration
 
@@ -88,14 +88,21 @@ Make sure to provide the correct PostgreSQL connection string in the `DATABASE_U
 
 ## Telegram Bot Operations
 
-The Telegram bot runs alongside your web application in the same process. This ensures the bot stays online and shares resources with the website.
+The Telegram bot runs alongside your web application using a webhook-based approach, which is more reliable for cloud deployments like Digital Ocean.
 
 ### Bot Architecture
 
 - The bot uses the Telegraf library to interact with Telegram's API
-- It runs in polling mode, which is more reliable for most deployments
-- The bot automatically runs database migrations on startup
+- **Webhook mode**: Instead of polling, the bot uses webhooks, which is more suitable for cloud environments
+- Updates from Telegram are received through the `/api/telegram-webhook` endpoint
 - Error handling and graceful shutdown are managed by the combined server
+
+### How Webhook Mode Works
+
+1. When the server starts, it registers a webhook URL with Telegram
+2. Telegram sends updates (messages, commands) to the webhook URL
+3. The Next.js API endpoint processes these updates and responds to users
+4. This approach is more reliable in environments like Digital Ocean that may restrict persistent connections
 
 ### Testing the Bot
 
@@ -106,13 +113,19 @@ The Telegram bot runs alongside your web application in the same process. This e
    - Send the code to the bot
    - Verify that your account is linked
 
-### Troubleshooting Bot Issues
+### Webhook Troubleshooting
 
 If the bot isn't responding:
 1. Check the app logs in Digital Ocean
-2. Verify the `TELEGRAM_BOT_TOKEN` is correct
-3. Look for any startup errors related to the bot in the logs
-4. Check for database migration errors in the logs
+2. Run the webhook utility to check status: `npm run bot:webhook check`
+3. Verify the `TELEGRAM_BOT_TOKEN` and `NEXT_PUBLIC_APP_URL` are correct
+4. Ensure your app URL is publicly accessible (Telegram needs to reach it)
+5. Try manually setting up the webhook: `npm run bot:webhook`
+
+### Webhook vs Polling
+
+- **Webhook mode** (current implementation): More reliable for cloud environments, doesn't require a persistent connection
+- **Polling mode** (alternative): Better for local development, requires a constant connection to Telegram
 
 ## Maintenance
 
@@ -132,6 +145,7 @@ Set up automatic backups for your PostgreSQL database in the Digital Ocean dashb
 - [Next.js Deployment Documentation](https://nextjs.org/docs/deployment)
 - [Prisma Deployment Guide](https://www.prisma.io/docs/guides/deployment/deployment)
 - [Telegraf Documentation](https://telegraf.js.org/)
+- [Telegram Bot Webhook Documentation](https://core.telegram.org/bots/api#setwebhook)
 
 ## Support
 
