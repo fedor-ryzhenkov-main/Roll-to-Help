@@ -61,7 +61,7 @@ export default function TelegramLogin() {
           <ol className="text-left mb-6 space-y-2">
             <li className="flex items-start">
               <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">1</span>
-              <span>Open Telegram and search for <a href="https://t.me/RollToHelpBot" target="_blank" rel="noopener noreferrer" className="text-orange-600 font-medium">@RollToHelpBot</a></span>
+              <span>Open Telegram and search for <a href="https://t.me/roll_to_help_bot" target="_blank" rel="noopener noreferrer" className="text-orange-600 font-medium">@roll_to_help_bot</a></span>
             </li>
             <li className="flex items-start">
               <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">2</span>
