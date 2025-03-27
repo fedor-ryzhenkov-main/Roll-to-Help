@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Poppins } from 'next/font/google'
+import Link from 'next/link'
 
 const poppins = Poppins({ 
   weight: ['400', '500', '600', '700'],
@@ -48,7 +49,7 @@ export default function RootLayout({
       <body className={`${poppins.className} bg-amber-50 flex flex-col min-h-screen`}>
         <header className="bg-orange-600 text-white p-4 shadow-md">
           <div className="container mx-auto">
-            <a href="/" className="text-2xl font-bold">Roll to Help</a>
+            <Link href="/" className="text-2xl font-bold">Roll to Help</Link>
           </div>
         </header>
         

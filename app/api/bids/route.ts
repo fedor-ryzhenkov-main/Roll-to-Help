@@ -44,9 +44,6 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Get current highest bid
-    const highestBid = game.bids[0]?.amount || game.startingBid
-    
     // Check if bid amount is at least the minimum required
     if (validatedData.amount < game.startingBid) {
       return NextResponse.json(

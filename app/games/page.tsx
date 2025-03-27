@@ -84,7 +84,7 @@ export default async function GamesPage() {
           <div className="space-y-4">
             <div className="flex items-start">
               <div className="bg-orange-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">1</div>
-              <p>Choose a game you'd like to play and place your bid using your Telegram username.</p>
+              <p>Choose a game you&apos;d like to play and place your bid using your Telegram username.</p>
             </div>
             <div className="flex items-start">
               <div className="bg-orange-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">2</div>

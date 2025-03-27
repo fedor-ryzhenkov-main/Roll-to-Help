@@ -20,7 +20,7 @@ export default function AboutPage() {
               Roll to Help brings together the tabletop gaming community to support meaningful causes. We believe in the power of play to create positive change, connecting gamers who want to make a difference through the hobby they love.
             </p>
             <p className="text-gray-700">
-              Our current focus is supporting "Choose to Help," a vital organization that has been providing essential aid to Ukrainian refugees in Georgia. As they prepare to close their operations, our gaming community is rallying to help them one last time.
+              Our current focus is supporting &quot;Choose to Help,&quot; a vital organization that has been providing essential aid to Ukrainian refugees in Georgia. As they prepare to close their operations, our gaming community is rallying to help them one last time.
             </p>
           </div>
         </section>
@@ -33,7 +33,7 @@ export default function AboutPage() {
               Our system is simple: experienced Game Masters volunteer to run tabletop roleplaying games, and players bid for seats at these tables. The highest bidders win spots in the games, with all proceeds going directly to our supported charity.
             </p>
             <p className="text-gray-700">
-              To participate, browse the available games, find one that interests you, and place a bid using your Telegram username. If you're among the highest bidders when the auction closes, you'll receive a confirmation message with details about the event location, what to bring, and how to complete your payment.
+              To participate, browse the available games, find one that interests you, and place a bid using your Telegram username. If you&apos;re among the highest bidders when the auction closes, you&apos;ll receive a confirmation message with details about the event location, what to bring, and how to complete your payment.
             </p>
           </div>
         </section>
@@ -43,10 +43,10 @@ export default function AboutPage() {
           <h2 className="text-2xl font-bold text-purple-800 mb-4">How You Can Help</h2>
           <div className="bg-white p-6 rounded-lg shadow-md border border-purple-100">
             <p className="text-gray-700 mb-4">
-              <strong>Bid on Games:</strong> The most direct way to support our cause is by bidding on games that interest you. Even if you're new to tabletop roleplaying, our Game Masters will ensure you have a great experience!
+              <strong>Bid on Games:</strong> The most direct way to support our cause is by bidding on games that interest you. Even if you&apos;re new to tabletop roleplaying, our Game Masters will ensure you have a great experience!
             </p>
             <p className="text-gray-700 mb-4">
-              <strong>Run a Game:</strong> If you're an experienced Game Master, consider volunteering to run a session at our next event. Contact us via email or Telegram to discuss what game you'd like to offer.
+              <strong>Run a Game:</strong> If you&apos;re an experienced Game Master, consider volunteering to run a session at our next event. Contact us via email or Telegram to discuss what game you&apos;d like to offer.
             </p>
             <p className="text-gray-700">
               <strong>Spread the Word:</strong> Follow us on social media and share our events with friends who might be interested in gaming for a good cause.
@@ -75,7 +75,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-bold text-purple-800 mb-4">Contact Us</h2>
           <div className="bg-white p-6 rounded-lg shadow-md border border-purple-100">
             <p className="text-gray-700 mb-4">
-              Have questions or want to get involved? We'd love to hear from you!
+              Have questions or want to get involved? We&apos;d love to hear from you!
             </p>
             <p className="text-gray-700">
               Email us at: <a href="mailto:info@roll-to-help.org" className="text-orange-600 hover:underline">info@roll-to-help.org</a>
