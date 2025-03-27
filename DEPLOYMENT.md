@@ -26,23 +26,16 @@ Ensure your code is pushed to a GitHub repository and includes:
 4. Connect your GitHub account and select your repository
 5. Select the branch you want to deploy (usually `main` or `master`)
 
-### 3. Configure Your App Components
+### 3. Configure Your App (Single Component)
 
-#### Website Component
-- Add your first component as a Web Service
+- Select the "Web Service" type for your app
 - Choose the Node.js runtime
 - Set the build command to: `npm run prepare-deploy`
 - Set the run command to: `npm run start:prod`
 - Choose an appropriate plan (Basic tier is recommended)
 
-#### Telegram Bot Component
-- Click "Add Component" and select "Worker"
-- Choose the same source repository
-- Set the run command to: `npm run bot`
-- Set resource size (minimal resources are usually sufficient)
-
-#### Environment Variables for Both Components
-Add the following environment variables to both components:
+#### Environment Variables
+Add the following environment variables:
 - `DATABASE_URL`: Your PostgreSQL connection string (you'll get this in step 4)
 - `DATABASE_PROVIDER`: Set to `postgresql`
 - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token from BotFather
@@ -50,6 +43,7 @@ Add the following environment variables to both components:
 - `NEXTAUTH_URL`: The URL of your deployed app (e.g., `https://your-app-name.ondigitalocean.app`)
 - `NEXT_PUBLIC_APP_URL`: Same as NEXTAUTH_URL, used by the bot for verification links
 - `NODE_ENV`: Set to `production`
+- `PORT`: Set to `8080` (Digital Ocean's default port)
 
 ### 4. Add a Database
 
@@ -57,7 +51,7 @@ Add the following environment variables to both components:
 2. Create a new PostgreSQL database cluster
 3. Choose an appropriate plan
 4. Once created, go to the "Connection" tab
-5. Copy the connection string and add it as your `DATABASE_URL` environment variable for both components
+5. Copy the connection string and add it as your `DATABASE_URL` environment variable
 
 ### 5. Deploy Your App
 
@@ -68,9 +62,24 @@ Add the following environment variables to both components:
 ### 6. Verify Deployment
 
 - Visit your app URL to confirm the website is working
-- Check the logs for both components to verify they're running
+- Check the logs to verify both the website and bot are running
 - Test the Telegram bot by sending `/start` to your bot
 - Test all functionality (browsing games, placing bids, generating verification codes, etc.)
+
+## Combined Architecture
+
+This deployment uses a combined server architecture where the Next.js web application and Telegram bot run in the same process. This approach has several benefits:
+
+- **Cost-effective**: Only one Digital Ocean App Platform resource is needed
+- **Simplified deployment**: Single codebase and deployment process
+- **Shared resources**: Both the web app and bot use the same database connection
+- **Unified logging**: All logs appear in the same stream for easier debugging
+
+The `server.js` file handles:
+1. Running database migrations on startup
+2. Starting the Next.js web application
+3. Initializing the Telegram bot in polling mode
+4. Graceful shutdown of both services when needed
 
 ## Database Provider Configuration
 
@@ -87,14 +96,14 @@ The migration script is designed to handle switching between providers automatic
 
 ## Telegram Bot Operations
 
-The Telegram bot runs as a separate worker component alongside your web application. This ensures the bot stays online even during website redeployments or restarts.
+The Telegram bot runs alongside your web application in the same process. This ensures the bot stays online and shares resources with the website.
 
 ### Bot Architecture
 
 - The bot uses the Telegraf library to interact with Telegram's API
 - It runs in polling mode, which is more reliable for most deployments
 - The bot automatically runs database migrations on startup
-- Digital Ocean's App Platform ensures the bot process restarts if it crashes
+- Error handling and graceful shutdown are managed by the combined server
 
 ### Testing the Bot
 
@@ -108,9 +117,9 @@ The Telegram bot runs as a separate worker component alongside your web applicat
 ### Troubleshooting Bot Issues
 
 If the bot isn't responding:
-1. Check the logs for the bot component in Digital Ocean
+1. Check the app logs in Digital Ocean
 2. Verify the `TELEGRAM_BOT_TOKEN` is correct
-3. Make sure the bot process is running (you should see both components running in the App Platform dashboard)
+3. Look for any startup errors related to the bot in the logs
 4. Check for database migration errors in the logs
 
 ## Maintenance
@@ -119,7 +128,7 @@ If the bot isn't responding:
 
 1. Push changes to your GitHub repository
 2. Digital Ocean will automatically rebuild and deploy
-3. Both the website and bot components will be updated
+3. Both the website and bot will be updated
 
 ### Database Backups
 
