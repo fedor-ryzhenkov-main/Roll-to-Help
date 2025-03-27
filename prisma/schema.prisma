@@ -13,14 +13,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Define User model for admins
+// Define User model
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  isAdmin   Boolean  @default(false)
+  id                Int      @id @default(autoincrement())
+  username          String?  @unique
+  password          String?
+  telegramId        String?  @unique // Telegram's unique user ID
+  telegramUsername  String?  @unique // @username
+  telegramFirstName String?
+  telegramLastName  String?
+  telegramPhotoUrl  String?
+  verificationCode  String?  // For account linking process
+  isVerified        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  isAdmin           Boolean  @default(false)
+  bids              Bid[]
 }
 
 // Event model - represents the upcoming charity event
@@ -51,11 +59,14 @@ model Game {
 
 // Bid model - represents a user's bid for a game
 model Bid {
-  id           Int      @id @default(autoincrement())
-  telegramName String
+  id           Int       @id @default(autoincrement())
+  telegramName String?
   amount       Float
   gameId       Int
-  game         Game     @relation(fields: [gameId], references: [id])
-  createdAt    DateTime @default(now())
-  isWinning    Boolean  @default(false) // Flag to mark winning bids
+  game         Game      @relation(fields: [gameId], references: [id])
+  createdAt    DateTime  @default(now())
+  isWinning    Boolean   @default(false) // Flag to mark winning bids
+  userId       Int?
+  user         User?     @relation(fields: [userId], references: [id])
+  notifiedAt   DateTime?
 }
