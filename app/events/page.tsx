@@ -4,7 +4,7 @@ import { formatDate } from '../lib/utils'
 
 export default async function EventsPage() {
   const events = await prisma.event.findMany({
-    orderBy: { startDate: 'asc' },
+    orderBy: { eventDate: 'asc' },
   })
 
   return (
@@ -32,8 +32,8 @@ export default async function EventsPage() {
                 <h2 className="text-xl font-semibold mb-2">{event.name}</h2>
                 <p className="text-gray-600 mb-4 line-clamp-2">{event.description}</p>
                 <div className="text-sm text-gray-500 mb-4">
-                  <p>Starts: {formatDate(event.startDate)}</p>
-                  <p>Ends: {formatDate(event.endDate)}</p>
+                  <p>Date: {formatDate(event.eventDate)}</p>
+                  <p>Location: {event.location}</p>
                 </div>
                 <Link 
                   href={`/events/${event.id}`}
