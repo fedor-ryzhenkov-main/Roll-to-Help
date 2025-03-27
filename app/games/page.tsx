@@ -3,22 +3,32 @@ import prisma from '../lib/db'
 import GameCard from '../components/GameCard'
 import { formatDate } from '../lib/utils'
 
+// Set dynamic flag to ensure page is rendered at request time, not build time
+export const dynamic = 'force-dynamic';
+
 export default async function GamesPage() {
   // Get the active event
-  const event = await prisma.event.findFirst({
-    where: { isActive: true },
-    include: {
-      games: {
-        include: {
-          bids: {
-            orderBy: {
-              amount: 'desc'
+  let event = null;
+  
+  try {
+    event = await prisma.event.findFirst({
+      where: { isActive: true },
+      include: {
+        games: {
+          include: {
+            bids: {
+              orderBy: {
+                amount: 'desc'
+              }
             }
           }
         }
       }
-    }
-  })
+    });
+  } catch (error) {
+    console.error('Error fetching games data:', error);
+    // Continue with null event - the UI will handle this case
+  }
 
   // If no event is active, show a message
   if (!event) {

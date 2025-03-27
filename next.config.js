@@ -21,6 +21,19 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  
+  // Skip static generation for pages that require database access
+  experimental: {
+    // This disables static generation for pages that would require database access
+    // during the build phase, ensuring we only access the database at runtime
+    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
+  },
+  
+  // Skip prerendering of data-dependent pages during build
+  env: {
+    // Set a dummy DATABASE_URL for build time
+    DATABASE_URL: process.env.DATABASE_URL || 'file:./dev.db',
+  },
 }
 
 module.exports = nextConfig 

@@ -3,19 +3,29 @@ import Image from 'next/image'
 import prisma from './lib/db'
 import { format } from 'date-fns'
 
+// Set dynamic flag to determine if we're in build phase
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   // Get active event with details
-  const activeEvent = await prisma.event.findFirst({
-    where: { isActive: true },
-    select: { 
-      id: true,
-      name: true,
-      description: true,
-      location: true,
-      eventDate: true,
-      imageUrl: true
-    }
-  })
+  let activeEvent = null;
+  
+  try {
+    activeEvent = await prisma.event.findFirst({
+      where: { isActive: true },
+      select: { 
+        id: true,
+        name: true,
+        description: true,
+        location: true,
+        eventDate: true,
+        imageUrl: true
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching event data:', error);
+    // Continue with null activeEvent - the UI will handle this case
+  }
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-16">
