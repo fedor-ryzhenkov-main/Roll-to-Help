@@ -9,7 +9,7 @@ module.exports = {
   apps: [
     {
       name: 'web-app',
-      script: 'node_modules/next/dist/bin/next',
+      script: 'node_modules/.bin/next',
       args: 'start',
       env: {
         NODE_ENV: 'production',

@@ -14,7 +14,7 @@
     "db:setup": "npm run prisma:migrate && npm run db:seed",
     "prepare-deploy": "npm run prisma:generate && npm run build",
     "bot": "node scripts/bot.js",
-    "start:prod": "pm2-runtime ecosystem.config.js"
+    "start:prod": "next start"
   },
   "keywords": [
     "charity",
