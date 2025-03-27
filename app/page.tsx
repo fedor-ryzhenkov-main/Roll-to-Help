@@ -3,29 +3,19 @@ import Image from 'next/image'
 import prisma from './lib/db'
 import { format } from 'date-fns'
 
-// Set dynamic flag to determine if we're in build phase
-export const dynamic = 'force-dynamic';
-
 export default async function HomePage() {
   // Get active event with details
-  let activeEvent = null;
-  
-  try {
-    activeEvent = await prisma.event.findFirst({
-      where: { isActive: true },
-      select: { 
-        id: true,
-        name: true,
-        description: true,
-        location: true,
-        eventDate: true,
-        imageUrl: true
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching event data:', error);
-    // Continue with null activeEvent - the UI will handle this case
-  }
+  const activeEvent = await prisma.event.findFirst({
+    where: { isActive: true },
+    select: { 
+      id: true,
+      name: true,
+      description: true,
+      location: true,
+      eventDate: true,
+      imageUrl: true
+    }
+  })
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-16">
@@ -87,27 +77,23 @@ export default async function HomePage() {
               </a>
             </div>
             
-            
             {/* CTA Buttons */}
-            <div className="flex flex-col items-center justify-center gap-4 mx-auto">
-              {/* Container to determine the width based on content */}
-              <div className="inline-flex flex-col gap-4 items-center">
-                {/* Primary CTA Button */}
-                <Link 
-                  href="/games" 
-                  className="bg-orange-600 hover:bg-orange-700 text-white text-lg font-bold py-4 px-8 rounded-lg shadow-lg transition-all hover:scale-105 text-center whitespace-nowrap"
-                >
-                  Join Games
-                </Link>
-                
-                {/* Secondary About Us Button */}
-                <Link 
-                  href="/about" 
-                  className="bg-transparent border-2 border-purple-600 text-purple-700 hover:bg-purple-50 text-lg font-medium py-3.5 px-7 rounded-lg transition-colors text-center whitespace-nowrap w-full"
-                >
-                  About Us
-                </Link>
-              </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mx-auto">
+              {/* Primary CTA Button */}
+              <Link 
+                href="/games" 
+                className="bg-orange-600 hover:bg-orange-700 text-white text-lg font-bold py-4 px-8 rounded-lg shadow-lg transition-all hover:scale-105 w-full text-center"
+              >
+                Join Games
+              </Link>
+              
+              {/* Secondary About Us Button */}
+              <Link 
+                href="/about" 
+                className="bg-transparent border-2 border-purple-600 text-purple-700 hover:bg-purple-50 text-lg font-medium py-3.5 px-7 rounded-lg transition-colors w-full text-center"
+              >
+                About Us
+              </Link>
             </div>
           </>
         ) : (
