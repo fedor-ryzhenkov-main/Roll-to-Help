@@ -4,7 +4,7 @@ import prisma from '../../lib/db'
 import { formatDate, formatCurrency } from '../../lib/utils'
 
 export default async function EventPage({ params }: { params: { id: string } }) {
-  const { id } = await Promise.resolve(params)
+  const { id } = params
   const eventId = parseInt(id)
   
   if (isNaN(eventId)) {
