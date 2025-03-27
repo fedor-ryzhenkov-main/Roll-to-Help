@@ -16,7 +16,7 @@ console.log('🚀 Starting Roll to Help server...');
 require('./scripts/migrate');
 
 // Start the Next.js server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 console.log(`🌐 Starting Next.js app on port ${PORT}...`);
 
 const next = require('next');
