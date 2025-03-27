@@ -9,18 +9,18 @@ module.exports = {
   apps: [
     {
       name: 'web-app',
-      script: 'npm',
+      script: 'node_modules/next/dist/bin/next',
       args: 'start',
       env: {
         NODE_ENV: 'production',
+        PORT: 8080
       },
       instances: 1,
       autorestart: true,
     },
     {
       name: 'telegram-bot',
-      script: 'npm',
-      args: 'run bot',
+      script: './scripts/bot.js',
       env: {
         NODE_ENV: 'production',
       },
