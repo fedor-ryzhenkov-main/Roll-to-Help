@@ -1,0 +1,17 @@
+{
+  "HomePage": {
+    "title": "Roll to Help",
+    "description": "საქველმოქმედო TTRPG ღონისძიება თბილისში. ყველა შემოსავალი გადაეცემა Choose to Help-ს, მოხალისეობრივ ორგანიზაციას, რომელიც ეხმარება უკრაინელ ლტოლვილებს.",
+    "whereLabel": "სად",
+    "whereValue": "კლუბი \"MESTO\" ტექნიკურ უნივერსიტეტთან",
+    "whenLabel": "როდის",
+    "whenValue": "პარასკევი, 25 აპრილი, 18:00",
+    "telegramLabel": "ტელეგრამ არხი",
+    "joinGamesButton": "თამაშების ნახვა",
+    "aboutUsButton": "ჩვენ შესახებ"
+  },
+  "GamesPage": {
+    "noGamesMessage": "თამაშები მალე გამოცხადდება! გთხოვთ, მოგვიანებით შეამოწმოთ."
+  }
+}
+// Note: This is a machine translation for Georgian. Please verify with a native speaker. 

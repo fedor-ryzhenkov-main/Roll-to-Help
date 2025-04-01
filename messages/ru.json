@@ -1,0 +1,16 @@
+{
+  "HomePage": {
+    "title": "Roll to Help",
+    "description": "Благотворительная НРИ-игротека в Тбилиси. Все сборы пойдут на помощь Choose to Help, волонтёрской организации занимающейся помощью Украинским беженцам.",
+    "whereLabel": "Где",
+    "whereValue": "Клуб \"MESTO\" на Техническом Университете",
+    "whenLabel": "Когда",
+    "whenValue": "Пятница, 25 Апреля, 18:00",
+    "telegramLabel": "Телеграм Канал",
+    "joinGamesButton": "Смотреть Игры",
+    "aboutUsButton": "О Нас"
+  },
+  "GamesPage": {
+    "noGamesMessage": "Игры будут анонсированы скоро! Зайдите позже."
+  }
+} 

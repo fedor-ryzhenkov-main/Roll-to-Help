@@ -8,7 +8,7 @@ function AuthSection() {
   const { data: session, status } = useSession();
 
   if (status === "loading") {
-    return <div className="text-sm text-gray-500 px-4 py-2">Loading...</div>;
+    return <div className="h-8 w-24 animate-pulse bg-gray-200 rounded"></div>;
   }
 
   if (session?.user) {
@@ -40,12 +40,12 @@ function AuthSection() {
   return (
     <Link href="/link-telegram" passHref>
         <button
-          className="inline-flex items-center px-2 py-1 sm:px-4 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 whitespace-nowrap"
+          className="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 whitespace-nowrap"
         >
-          <svg className="mr-1 sm:mr-2 -ml-1 w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 005 10a6 6 0 0012 0c0-.526-.097-1.028-.265-1.493A5.001 5.001 0 0010 11z" clipRule="evenodd"></path>
+          <svg className="mr-1 sm:mr-2 -ml-0.5 w-4 h-4 sm:w-5 sm:h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 005 10a6 6 0 0012 0c0-.526-.097-1.028-.265-1.493A5.001 5.001 0 0010 11z" clipRule="evenodd"></path>
           </svg>
-          Login / Link Account
+          Login
         </button>
     </Link>
   );
@@ -64,42 +64,44 @@ export default function NavBar() {
                 Roll to Help
               </Link>
             </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+            <div className="hidden sm:ml-6 sm:flex sm:items-stretch sm:space-x-1">
               <Link 
                 href="/" 
-                className="border-transparent text-gray-700 hover:text-purple-900 hover:border-purple-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                className="text-gray-700 hover:text-purple-900 inline-flex items-center px-3 pt-1 border-b-2 border-transparent text-sm font-medium focus:outline-none focus:border-purple-500 transition duration-150 ease-in-out"
               >
                 Home
               </Link>
               <Link 
                 href="/games" 
-                className="border-transparent text-gray-700 hover:text-purple-900 hover:border-purple-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                className="text-gray-700 hover:text-purple-900 inline-flex items-center px-3 pt-1 border-b-2 border-transparent text-sm font-medium focus:outline-none focus:border-purple-500 transition duration-150 ease-in-out"
               >
                 Games
               </Link>
             </div>
           </div>
-          <div className="hidden sm:flex sm:items-center sm:ml-6">
-            <AuthSection />
-          </div>
-          <div className="-mr-2 flex items-center sm:hidden">
-            <div className="mr-2">
-                 <AuthSection />
+          <div className="flex items-center">
+            <div className="hidden sm:flex sm:items-center sm:ml-6">
+              <AuthSection />
             </div>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              type="button"
-              className="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-              aria-controls="mobile-menu"
-              aria-expanded="false"
-            >
-              <span className="sr-only">Open main menu</span>
-              {isMenuOpen ? (
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              ) : (
-                <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-              )}
-            </button>
+            <div className="-mr-2 flex items-center sm:hidden">
+              <div className="mr-2">
+                   <AuthSection />
+              </div>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                type="button"
+                className="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                aria-controls="mobile-menu"
+                aria-expanded="false"
+              >
+                <span className="sr-only">Open main menu</span>
+                {isMenuOpen ? (
+                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                ) : (
+                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
