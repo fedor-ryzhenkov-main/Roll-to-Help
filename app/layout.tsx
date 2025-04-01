@@ -1,5 +1,5 @@
 import './globals.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
 import Link from 'next/link'
 import NavBar from './components/NavBar'
@@ -9,6 +9,12 @@ const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
   subsets: ['latin'] 
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#9333ea',
+};
 
 export const metadata: Metadata = {
   title: 'Roll to Help',
@@ -33,11 +39,6 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-  },
-  themeColor: '#9333ea',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
   },
 }
 

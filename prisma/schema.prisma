@@ -36,6 +36,7 @@ model User {
   bids              Bid[]
   accounts          Account[] // Relation to Account model (for OAuth providers)
   sessions          Session[] // Relation to Session model
+  verifications     PendingVerification[] // Relation to PendingVerification model
 }
 
 // Account model - Required by NextAuth.js Prisma Adapter
@@ -85,6 +86,11 @@ model PendingVerification {
   verificationCode String   @unique // The code shown to the user
   expires          DateTime // When this code expires
   createdAt        DateTime @default(now())
+  
+  // New fields for tracking verification status
+  isVerified       Boolean  @default(false)
+  verifiedUserId   String?  // Relation to the User model (if verified)
+  verifiedUser     User?    @relation(fields: [verifiedUserId], references: [id])
 }
 
 // Event model - represents the upcoming charity event

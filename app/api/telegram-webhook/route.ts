@@ -10,6 +10,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initBot } from '@/app/lib/telegram';
 import prisma from '@/app/lib/db';
 
+// Define a type for the extended Prisma client with our custom models
+type ExtendedPrismaClient = typeof prisma & {
+  pendingVerification: {
+    findUnique: (args: any) => Promise<any>;
+    delete: (args: any) => Promise<any>;
+    update: (args: any) => Promise<any>;
+  }
+};
+
+// Use the extended client with proper type
+const extendedPrisma = prisma as ExtendedPrismaClient;
+
 // Process verification codes sent by users
 const handleVerificationCode = async (bot: any, ctx: any, text: string) => {
   console.log(`[Webhook] Attempting to handle text as verification code: ${text}`);
@@ -23,7 +35,7 @@ const handleVerificationCode = async (bot: any, ctx: any, text: string) => {
       
       // Try to verify the user with the code
       // First find the pending verification
-      const pending = await prisma.pendingVerification.findUnique({
+      const pending = await extendedPrisma.pendingVerification.findUnique({
         where: { verificationCode: text },
       });
       
@@ -35,7 +47,7 @@ const handleVerificationCode = async (bot: any, ctx: any, text: string) => {
       
       if (pending.expires < new Date()) {
         console.log(`[Webhook] Verification code ${text} has expired`);
-        await prisma.pendingVerification.delete({ 
+        await extendedPrisma.pendingVerification.delete({ 
           where: { id: pending.id } 
         });
         await ctx.reply('❌ This verification code has expired. Please generate a new code from the website.');
@@ -62,37 +74,29 @@ const handleVerificationCode = async (bot: any, ctx: any, text: string) => {
           isVerified: true,
           username: ctx.from.username || `user_${telegramId}`,
         },
+        // Explicitly select only the fields we need to prevent Prisma from trying to access fields 
+        // that might be in the schema but not in the actual database
+        select: {
+          id: true,
+          telegramId: true,
+          telegramUsername: true,
+          isVerified: true,
+        }
       });
       
       console.log(`[Webhook] User upserted with ID: ${user.id}`);
       
-      // Generate JWT token for magic login link
-      const jwtSecret = process.env.NEXTAUTH_SECRET;
-      if (!jwtSecret) {
-        console.error('[Webhook] NEXTAUTH_SECRET not defined!');
-        await ctx.reply('❌ Server configuration error. Please contact support.');
-        return false;
-      }
+      // Update the PendingVerification record to store the verified user ID
+      await extendedPrisma.pendingVerification.update({
+        where: { id: pending.id },
+        data: {
+          isVerified: true,
+          verifiedUserId: user.id,
+        }
+      });
       
-      const jwt = require('jsonwebtoken');
-      const loginToken = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: '5m' });
-      
-      // Construct magic link
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-      if (!appUrl) {
-        console.error('[Webhook] NEXT_PUBLIC_APP_URL not defined!');
-        await ctx.reply('❌ Server configuration error. Please contact support.');
-        return false;
-      }
-      
-      const magicLink = `${appUrl}/api/auth/callback/telegram?token=${loginToken}`;
-      
-      // Delete the pending verification
-      await prisma.pendingVerification.delete({ where: { id: pending.id } });
-      
-      // Send success message with login link
-      await ctx.reply('✅ Success! Your Telegram account has been linked to Roll to Help.');
-      await ctx.reply(`Click this link to log in (valid for 5 minutes):\n${magicLink}`);
+      // Send a success message
+      await ctx.reply('✅ Success! Your account has been verified. Return to the website to continue.');
       
       return true;
     }
