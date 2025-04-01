@@ -6,7 +6,7 @@
 
 // Import JWT library and date-fns for expiry check
 const jwt = require('jsonwebtoken');
-const { isBefore } = require('date-fns');
+import { isBefore } from 'date-fns';
 
 /**
  * Process verification codes sent by users

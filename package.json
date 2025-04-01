@@ -1,6 +1,7 @@
 {
   "name": "roll-to-help",
   "version": "1.0.0",
+  "type": "module",
   "description": "A lightweight web application for hosting charity tabletop gaming events where users can bid on game seats to support charity.",
   "main": "index.js",
   "scripts": {

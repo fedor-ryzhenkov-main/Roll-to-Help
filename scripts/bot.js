@@ -7,7 +7,7 @@
 
 // First, run database migrations
 try {
-  require('./migrate');
+  import('./migrate.js');
   console.log('Migration script loaded');
 } catch (err) {
   console.error('Failed to run migrations:', err);
@@ -15,10 +15,11 @@ try {
 }
 
 // Load environment variables
-require('dotenv').config({ path: '.env.local' });
+import 'dotenv/config';
 
-const { Telegraf } = require('telegraf');
-const { PrismaClient } = require('@prisma/client');
+import { Telegraf } from 'telegraf';
+import { PrismaClient } from '@prisma/client';
+import { handleVerificationCode, setupStartCommand, setupHelpCommand, setupRegisterCommand, setupMyAuctionsCommand } from './bot-functions.js';
 
 const prisma = new PrismaClient();
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);

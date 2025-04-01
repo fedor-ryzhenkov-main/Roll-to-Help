@@ -5,12 +5,13 @@
  * It ensures the database schema is up-to-date before the bot or app starts.
  */
 
-const { exec } = require('child_process');
-const { promisify } = require('util');
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import 'dotenv/config';
+
 const execAsync = promisify(exec);
 
 // Configuring dotenv to load environment variables
-require('dotenv').config();
 
 console.log('🔄 Running database migrations...');
 
@@ -37,6 +38,5 @@ async function runMigrations() {
 // Run migrations
 runMigrations();
 
-module.exports = {
-  // Export an empty object so this can be required by other scripts
-}; 
+// Export an empty object for the module system
+export default {}; 

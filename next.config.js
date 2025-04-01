@@ -26,8 +26,10 @@ const nextConfig = {
   experimental: {
     // This disables static generation for pages that would require database access
     // during the build phase, ensuring we only access the database at runtime
-    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
   },
+  
+  // External packages that should be processed by the server
+  serverExternalPackages: ['@prisma/client', 'prisma'],
 }
 
 module.exports = nextConfig 
