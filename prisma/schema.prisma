@@ -13,22 +13,78 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Define User model
+// User model - compatible with NextAuth.js Prisma Adapter
 model User {
-  id                Int      @id @default(autoincrement())
-  username          String?  @unique
-  password          String?
+  id                String   @id @default(cuid()) // Use cuid() for ID, as recommended by adapter
+  name              String? // Optional: General name field
+  email             String?  @unique // Optional: Required by adapter if using email features
+  emailVerified     DateTime? // Optional: Required by adapter
+  image             String? // Optional: User image URL
+  username          String?  @unique // Your custom username field
+  // password          String? // Typically not stored directly when using providers/adapters
   telegramId        String?  @unique // Telegram's unique user ID
-  telegramUsername  String?  @unique // @username
+  telegramUsername  String?  // Removed @unique, username is primary unique field now
   telegramFirstName String?
   telegramLastName  String?
   telegramPhotoUrl  String?
-  verificationCode  String?  // For account linking process
-  isVerified        Boolean  @default(false)
+  verificationCode  String?  // For your custom Telegram account linking process
+  isVerified        Boolean  @default(false) // Your custom verification flag
+  isAdmin           Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  isAdmin           Boolean  @default(false)
+
   bids              Bid[]
+  accounts          Account[] // Relation to Account model (for OAuth providers)
+  sessions          Session[] // Relation to Session model
+}
+
+// Account model - Required by NextAuth.js Prisma Adapter
+// Used for linking OAuth accounts (Google, GitHub, etc.)
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Session model - Required by NextAuth.js Prisma Adapter
+// Used for database session strategy
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// VerificationToken model - Required by NextAuth.js Prisma Adapter
+// Used for email verification (magic links)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Model to temporarily store verification codes before user is linked/created
+model PendingVerification {
+  id               String   @id @default(cuid()) // Unique ID for this pending verification
+  verificationCode String   @unique // The code shown to the user
+  expires          DateTime // When this code expires
+  createdAt        DateTime @default(now())
 }
 
 // Event model - represents the upcoming charity event
@@ -60,13 +116,13 @@ model Game {
 // Bid model - represents a user's bid for a game
 model Bid {
   id           Int       @id @default(autoincrement())
-  telegramName String?
+  // telegramName String? // Removed, user details come from the User relation
   amount       Float
   gameId       Int
   game         Game      @relation(fields: [gameId], references: [id])
   createdAt    DateTime  @default(now())
   isWinning    Boolean   @default(false) // Flag to mark winning bids
-  userId       Int?
+  userId       String?   // Changed to String to match User ID type
   user         User?     @relation(fields: [userId], references: [id])
   notifiedAt   DateTime?
 }
