@@ -10,6 +10,7 @@ import prisma from '@/app/lib/db';
 
 // Process verification codes sent by users
 const handleVerificationCode = async (bot: any, ctx: any, text: string) => {
+  console.log(`[Webhook] Attempting to handle text as verification code: ${text}`);
   try {
     // Check if the text looks like a verification code (alphanumeric, 6 chars)
     const isVerificationCode = /^[A-Z0-9]{6}$/.test(text);
@@ -51,6 +52,7 @@ const handleVerificationCode = async (bot: any, ctx: any, text: string) => {
 
 // Handle the /register command
 const handleRegisterCommand = async (ctx: any) => {
+  console.log("[Webhook] Handling /register command");
   try {
     const { id, username, first_name } = ctx.from;
     const telegramId = id.toString();
@@ -83,6 +85,7 @@ This will allow you to place bids and receive notifications about your auctions.
 
 // Handle the /myauctions command
 const handleMyAuctionsCommand = async (ctx: any) => {
+  console.log("[Webhook] Handling /myauctions command");
   try {
     const { id } = ctx.from;
     const telegramId = id.toString();
@@ -137,41 +140,51 @@ const handleMyAuctionsCommand = async (ctx: any) => {
 
 // Initialize bot and set up commands
 export async function POST(request: NextRequest) {
+  console.log("[Webhook] Received POST request");
   try {
     // Initialize the bot
     const bot = initBot();
     
     if (!bot) {
+      console.error("[Webhook] Bot initialization failed!");
       return NextResponse.json({ error: 'Bot initialization failed' }, { status: 500 });
     }
     
     // Set up commands
+    console.log("[Webhook] Setting up bot commands");
     bot.command('register', handleRegisterCommand);
     bot.command('myauctions', handleMyAuctionsCommand);
     
     // Handle regular messages (verification codes)
     bot.on('text', async (ctx) => {
+      console.log("[Webhook] Received text message:", ctx.message.text);
       const text = ctx.message.text.trim();
       
       // Skip command messages
-      if (text.startsWith('/')) return;
+      if (text.startsWith('/')) {
+        console.log("[Webhook] Ignoring text message as it's a command.");
+        return;
+      }
       
       // Try to process as verification code
       const handled = await handleVerificationCode(bot, ctx, text);
       
       // If not a verification code, provide guidance
       if (!handled) {
+        console.log("[Webhook] Text was not a verification code, sending help message.");
         await ctx.reply('Not sure what you mean. Use /help to see available commands.');
       }
     });
     
     // Process the update
     const update = await request.json();
+    console.log("[Webhook] Processing update:", JSON.stringify(update, null, 2));
     await bot.handleUpdate(update);
+    console.log("[Webhook] Finished processing update.");
     
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    console.error('[Webhook] Error processing webhook:', error);
     return NextResponse.json({ error: 'Failed to process update' }, { status: 500 });
   }
 } 
