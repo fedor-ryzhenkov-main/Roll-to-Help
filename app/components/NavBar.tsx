@@ -71,18 +71,6 @@ export default function NavBar() {
               >
                 Home
               </Link>
-              <Link 
-                href="/games" 
-                className="border-transparent text-gray-700 hover:text-purple-900 hover:border-purple-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                Games
-              </Link>
-              <Link 
-                href="/about" 
-                className="border-transparent text-gray-700 hover:text-purple-900 hover:border-purple-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
-              >
-                About
-              </Link>
             </div>
           </div>
           <div className="hidden sm:flex sm:items-center sm:ml-6">
@@ -114,8 +102,6 @@ export default function NavBar() {
         <div className="sm:hidden" id="mobile-menu">
           <div className="pt-2 pb-3 space-y-1">
             <Link href="/" className="text-gray-700 hover:bg-gray-50 hover:text-purple-900 block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium" onClick={() => setIsMenuOpen(false)}>Home</Link>
-            <Link href="/games" className="text-gray-700 hover:bg-gray-50 hover:text-purple-900 block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium" onClick={() => setIsMenuOpen(false)}>Games</Link>
-            <Link href="/about" className="text-gray-700 hover:bg-gray-50 hover:text-purple-900 block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium" onClick={() => setIsMenuOpen(false)}>About</Link>
           </div>
         </div>
       )}

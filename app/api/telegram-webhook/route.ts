@@ -74,14 +74,6 @@ const handleVerificationCode = async (bot: any, ctx: any, text: string) => {
           isVerified: true,
           username: ctx.from.username || `user_${telegramId}`,
         },
-        // Explicitly select only the fields we need to prevent Prisma from trying to access fields 
-        // that might be in the schema but not in the actual database
-        select: {
-          id: true,
-          telegramId: true,
-          telegramUsername: true,
-          isVerified: true,
-        }
       });
       
       console.log(`[Webhook] User upserted with ID: ${user.id}`);
