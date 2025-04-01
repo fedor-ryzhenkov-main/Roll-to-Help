@@ -53,7 +53,7 @@ async function setupWebhook() {
     if (!process.env.NEXT_PUBLIC_APP_URL) return;
     
     const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/telegram-webhook`;
+    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}api/telegram-webhook`;
     
     // Clear any existing webhook
     await bot.telegram.deleteWebhook();
