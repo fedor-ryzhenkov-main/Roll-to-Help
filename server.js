@@ -50,10 +50,16 @@ if (!process.env.NEXT_PUBLIC_APP_URL) {
 // Set up the bot webhook when the server starts
 async function setupWebhook() {
   try {
-    if (!process.env.NEXT_PUBLIC_APP_URL) return;
+    let appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) return;
+    
+    // Remove trailing slash from appUrl if it exists
+    if (appUrl.endsWith('/')) {
+      appUrl = appUrl.slice(0, -1);
+    }
     
     const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}api/telegram-webhook`;
+    const webhookUrl = `${appUrl}/api/telegram-webhook`;
     
     // Clear any existing webhook
     await bot.telegram.deleteWebhook();
