@@ -1,4 +1,4 @@
-import TelegramLogin from '../components/auth/TelegramLogin';
+import TelegramLogin from '@/app/components/auth/TelegramLogin';
 
 export const metadata = {
   title: 'Login with Telegram - Roll to Help',
