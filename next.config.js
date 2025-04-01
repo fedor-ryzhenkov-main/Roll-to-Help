@@ -32,4 +32,4 @@ const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'prisma'],
 }
 
-module.exports = nextConfig 
+export default nextConfig; 
