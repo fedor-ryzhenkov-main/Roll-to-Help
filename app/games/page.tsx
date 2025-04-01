@@ -2,104 +2,78 @@ import Link from 'next/link'
 import prisma from '../lib/db'
 import GameCard from '../components/GameCard'
 import { formatDate } from '../lib/utils'
+import Image from 'next/image'
 
 // Force dynamic rendering - prevents build-time database access
 export const dynamic = 'force-dynamic';
 
-export default async function GamesPage() {
-  // Get the active event
-  const event = await prisma.event.findFirst({
-    where: { isActive: true },
+// Fetch active games from the database
+async function getActiveGames() {
+  const now = new Date();
+  const games = await prisma.game.findMany({
+    where: {
+      event: {
+        isActive: true,
+        // Optional: Ensure event date is in the future if needed
+        // eventDate: { gt: now },
+      },
+    },
     include: {
-      games: {
-        include: {
-          bids: {
-            orderBy: {
-              amount: 'desc'
-            }
-          }
-        }
-      }
-    }
-  })
+      event: true, // Include event details if needed later
+    },
+    orderBy: {
+      title: 'asc', // Order games alphabetically
+    },
+  });
+  return games;
+}
 
-  // If no event is active, show a message
-  if (!event) {
-    return (
-      <div className="min-h-screen bg-amber-50 flex items-center justify-center">
-        <div className="text-center p-8 max-w-md">
-          <h1 className="text-3xl font-bold mb-4 text-purple-900">No Upcoming Events</h1>
-          <p className="text-gray-600 mb-8">
-            There are no active charity events at the moment. Please check back later!
-          </p>
-          <Link href="/" className="text-orange-600 hover:text-orange-700 font-medium">
-            ← Back to Home
-          </Link>
-        </div>
-      </div>
-    )
-  }
+export const metadata = {
+  title: 'Available Games - Roll to Help',
+  description: 'Browse available tabletop game sessions for our charity auction.',
+};
+
+export default async function GamesPage() {
+  const games = await getActiveGames();
 
   return (
-    <div className="min-h-screen bg-amber-50">
-      <main className="container mx-auto px-4 py-8">
-        {/* Event header */}
-        <div className="mb-10 text-center">
-          <Link href="/" className="text-orange-600 hover:text-orange-700 font-medium inline-block mb-4">
-            ← Back to Home
-          </Link>
-          <h1 className="text-4xl font-bold text-purple-900 mb-2">{event.name}</h1>
-          <p className="text-lg text-gray-700 mb-2">{formatDate(event.eventDate)}</p>
-          <p className="text-lg text-gray-700 mb-6">{event.location}</p>
-          
-          {event.description && (
-            <div className="max-w-2xl mx-auto">
-              <p className="text-gray-600">{event.description}</p>
-            </div>
-          )}
-        </div>
-        
-        {/* Games section */}
-        <section>
-          <h2 className="text-2xl font-bold mb-6 text-purple-900 text-center">Available Games</h2>
-          
-          {event.games.length === 0 ? (
-            <div className="text-center p-8">
-              <p className="text-xl text-gray-600">
-                No games available at the moment. Check back soon!
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {event.games.map((game) => (
-                <GameCard 
-                  key={game.id} 
-                  game={game} 
-                />
-              ))}
-            </div>
-          )}
-        </section>
-        
-        {/* How it works section */}
-        <section className="mt-16 bg-white p-6 rounded-lg shadow-md border border-purple-100">
-          <h2 className="text-2xl font-bold mb-4 text-purple-900">How It Works</h2>
-          <div className="space-y-4">
-            <div className="flex items-start">
-              <div className="bg-orange-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">1</div>
-              <p>Choose a game you&apos;d like to play and place your bid using your Telegram username.</p>
-            </div>
-            <div className="flex items-start">
-              <div className="bg-orange-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">2</div>
-              <p>The highest bidders for each game will win seats at the table (number of seats varies by game).</p>
-            </div>
-            <div className="flex items-start">
-              <div className="bg-orange-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">3</div>
-              <p>All proceeds go to charity! Winners will be notified through Telegram before the event.</p>
-            </div>
+    <div className="min-h-screen bg-amber-50 py-12">
+      <main className="container mx-auto px-4">
+        <h1 className="text-4xl font-bold text-center text-purple-900 mb-12">Available Games</h1>
+
+        {games.length === 0 ? (
+          <p className="text-center text-gray-600">No games currently available for bidding. Check back soon!</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {games.map((game) => (
+              <Link href={`/games/${game.id}`} key={game.id} passHref>
+                <div className="bg-white rounded-lg shadow-md overflow-hidden transform transition duration-300 hover:scale-105 hover:shadow-lg cursor-pointer h-full flex flex-col">
+                  <div className="relative h-48 w-full">
+                    <Image
+                      src={game.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'} // Placeholder image
+                      alt={game.title}
+                      layout="fill"
+                      objectFit="cover"
+                    />
+                  </div>
+                  <div className="p-6 flex-grow flex flex-col justify-between">
+                    <div>
+                      <h2 className="text-xl font-semibold text-purple-900 mb-2">{game.title}</h2>
+                      <p className="text-gray-700 text-sm line-clamp-3">
+                        {game.description || 'No description available.'}
+                      </p>
+                    </div>
+                    <div className="mt-4 text-right text-orange-600 font-medium">View Details &rarr;</div>
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
-        </section>
+        )}
       </main>
     </div>
   )
-} 
+}
+
+// Revalidate this page periodically (e.g., every hour)
+export const revalidate = 3600; 
