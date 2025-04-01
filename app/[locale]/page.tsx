@@ -51,12 +51,6 @@ export default function HomePage() {
           >
             {t('joinGamesButton')}
           </Link>
-          <Link 
-            href="/about"
-            className="bg-purple-700 hover:bg-purple-800 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition duration-300 transform hover:scale-105"
-          >
-            {t('aboutUsButton')}
-          </Link>
         </div>
       </main>
     </div>

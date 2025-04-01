@@ -7,8 +7,7 @@
     "whenLabel": "Когда",
     "whenValue": "Пятница, 25 Апреля, 18:00",
     "telegramLabel": "Телеграм Канал",
-    "joinGamesButton": "Смотреть Игры",
-    "aboutUsButton": "О Нас"
+    "joinGamesButton": "Смотреть Игры"
   },
   "GamesPage": {
     "noGamesMessage": "Игры будут анонсированы скоро! Зайдите позже."

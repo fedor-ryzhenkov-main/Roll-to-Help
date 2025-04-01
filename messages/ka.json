@@ -7,8 +7,7 @@
     "whenLabel": "როდის",
     "whenValue": "პარასკევი, 25 აპრილი, 18:00",
     "telegramLabel": "ტელეგრამ არხი",
-    "joinGamesButton": "თამაშების ნახვა",
-    "aboutUsButton": "ჩვენ შესახებ"
+    "joinGamesButton": "თამაშების ნახვა"
   },
   "GamesPage": {
     "noGamesMessage": "თამაშები მალე გამოცხადდება! გთხოვთ, მოგვიანებით შეამოწმოთ."
