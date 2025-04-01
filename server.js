@@ -4,29 +4,36 @@
  */
 
 // Load environment variables
-require('dotenv').config();
+import 'dotenv/config';
 
-const { spawn } = require('child_process');
-const path = require('path');
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url'; // Needed for __dirname in ESM
+import next from 'next';
+import http from 'http';
+import { Telegraf } from 'telegraf';
+
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // First run the migrations
 console.log('🚀 Starting Roll to Help server...');
 
-// Run the migration script first
-require('./scripts/migrate');
+// Run the migration script first (ensure it's ESM compatible too)
+// Assuming migrate.js is now ESM and exports a default function/object
+import './scripts/migrate.js';
 
 // Start the Next.js server
 const PORT = process.env.PORT || 8080;
 console.log(`🌐 Starting Next.js app on port ${PORT}...`);
 
-const next = require('next');
+// No changes needed for initializing next instance
 const app = next({ dev: process.env.NODE_ENV !== 'production' });
 const handle = app.getRequestHandler();
-const http = require('http');
 
 // Set up the Telegram bot webhook
 console.log('🤖 Setting up Telegram bot webhook...');
-const { Telegraf } = require('telegraf');
 
 // Make sure we have our token
 if (!process.env.TELEGRAM_BOT_TOKEN) {
