@@ -4,6 +4,8 @@ import { Poppins } from 'next/font/google'
 import Link from 'next/link'
 import NavBar from './components/NavBar'
 import NextAuthProvider from './components/NextAuthProvider'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from './api/auth/[...nextauth]/route'
 
 const poppins = Poppins({ 
   weight: ['400', '500', '600', '700'],
@@ -42,15 +44,17 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="en">
       <body className={`${poppins.className} bg-amber-50 flex flex-col min-h-screen`}>
-        <NextAuthProvider>
+        <NextAuthProvider session={session}>
           <header>
             <NavBar />
           </header>

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 
 // Define form schema
 const telegramLoginSchema = z.object({
@@ -22,6 +22,7 @@ export default function TelegramLogin() {
   const [pollCount, setPollCount] = useState(0);
   const router = useRouter();
   const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { update: updateSession } = useSession();
   
   const { register, handleSubmit, formState: { errors } } = useForm<TelegramLoginFormData>({
     resolver: zodResolver(telegramLoginSchema),
@@ -46,9 +47,11 @@ export default function TelegramLogin() {
             pollingTimerRef.current = null;
           }
           
-          // Redirect to homepage or dashboard - the API has already set the session cookie
+          // Explicitly trigger a session update
+          await updateSession();
+          
+          // Redirect to homepage - session update should re-render NavBar
           router.push('/');
-          router.refresh();
         } else {
           // Still waiting for verification
           setVerificationStatus('pending');
@@ -75,7 +78,7 @@ export default function TelegramLogin() {
         pollingTimerRef.current = null;
       }
     }
-  }, [verificationCode, router]);
+  }, [verificationCode, router, updateSession]);
   
   // Set up polling when verification code is generated
   useEffect(() => {
