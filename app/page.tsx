@@ -51,6 +51,43 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* Partner logos with links */}
+        <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 mb-12">
+          <a href="https://choosetohelp.ge/eng" target="_blank" rel="noopener noreferrer" className="block hover:scale-105 transition-transform">
+            <div className="w-24 h-24 overflow-hidden rounded-full border-2 border-orange-200">
+              <Image 
+                src="/choose-to-help-logo.png" 
+                alt="Choose to Help" 
+                width={100} 
+                height={100} 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </a>
+          <a href="https://www.instagram.com/mesto.tbilisi/?hl=en" target="_blank" rel="noopener noreferrer" className="block hover:scale-105 transition-transform">
+            <div className="w-24 h-24 overflow-hidden rounded-full border-2 border-orange-200">
+              <Image 
+                src="/mesto-logo.png" 
+                alt="Mesto Tbilisi" 
+                width={100} 
+                height={100} 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </a>
+          <a href="https://t.me/ttrpgs_tbilisi" target="_blank" rel="noopener noreferrer" className="block hover:scale-105 transition-transform">
+            <div className="w-24 h-24 overflow-hidden rounded-full border-2 border-orange-200">
+              <Image 
+                src="/ttrpgs-logo.png" 
+                alt="TTRPGs Tbilisi" 
+                width={100} 
+                height={100} 
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </a>
+        </div>
+
         <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
           <Link 
             href="/games"
