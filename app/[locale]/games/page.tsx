@@ -1,7 +1,8 @@
 import prisma from "@/app/lib/db";
-import Link from "next/link";
+import {Link} from '@/i18n/navigation';
 import Image from "next/image";
 import { useTranslations } from 'next-intl';
+import { setRequestLocale } from 'next-intl/server';
 
 // Fetch active games from the database
 async function getActiveGames() {
@@ -29,7 +30,13 @@ export const metadata = {
   description: 'Browse available tabletop game sessions for our charity auction.',
 };
 
-export default async function GamesPage() {
+type Props = {
+  params: {locale: string};
+};
+
+export default async function GamesPage({params: {locale}}: Props) {
+  setRequestLocale(locale);
+  
   const games = await getActiveGames();
   const t = useTranslations('GamesPage');
 

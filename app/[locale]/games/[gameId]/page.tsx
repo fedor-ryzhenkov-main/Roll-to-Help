@@ -1,8 +1,9 @@
 import prisma from "@/app/lib/db";
-import Link from "next/link";
+import {Link} from '@/i18n/navigation';
 import Image from "next/image";
 import { notFound } from 'next/navigation';
-import PlaceBid from '@/app/components/PlaceBid'; // We'll create this next
+import PlaceBid from '@/app/components/PlaceBid';
+import { setRequestLocale, getTranslations } from 'next-intl/server';
 
 // Fetch game data including top bids
 async function getGameData(gameId: number) {
@@ -41,13 +42,17 @@ async function getGameData(gameId: number) {
 }
 
 interface GamePageProps {
-  params: { gameId: string };
+  params: { gameId: string; locale: string };
 }
 
-// Generate Metadata dynamically
+// Generate Metadata dynamically (needs locale)
 export async function generateMetadata({ params }: GamePageProps) {
   const gameId = parseInt(params.gameId, 10);
+  if (isNaN(gameId)) return { title: 'Game Not Found' };
+  
   const { game } = await getGameData(gameId); 
+  const t = await getTranslations({locale: params.locale, namespace: 'Metadata'});
+  
   return {
     title: `${game.title} - Roll to Help Auction`,
     description: game.description || `Bid on a seat for the ${game.title} tabletop game session.`,
@@ -56,8 +61,10 @@ export async function generateMetadata({ params }: GamePageProps) {
 
 export default async function GamePage({ params }: GamePageProps) {
   const gameId = parseInt(params.gameId, 10);
+  const locale = params.locale;
   
-  // Handle potential NaN if params.gameId is not a number
+  setRequestLocale(locale);
+  
   if (isNaN(gameId)) {
       notFound();
   }

@@ -1,8 +1,15 @@
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+import { setRequestLocale } from 'next-intl/server';
+import {Link} from '@/i18n/navigation';
 import Image from 'next/image';
 
-export default function HomePage() {
+type Props = {
+  params: {locale: string};
+};
+
+export default function HomePage({params: {locale}}: Props) {
+  setRequestLocale(locale);
+
   const t = useTranslations('HomePage');
 
   return (

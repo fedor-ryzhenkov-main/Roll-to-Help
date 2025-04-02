@@ -1,15 +1,12 @@
 import createMiddleware from 'next-intl/middleware';
-import './i18n'; // Explicitly import config to hint build process
+import {routing} from './i18n/routing'; // Import from the new location
 
-export default createMiddleware({
-  // A list of all locales that are supported
-  locales: ['en', 'ru', 'ka'], // ka for Georgian
-
-  // Used when no locale matches
-  defaultLocale: 'en'
-});
+export default createMiddleware(routing); // Pass routing config
 
 export const config = {
-  // Match only internationalized pathnames
-  matcher: ['/', '/(ka|ru|en)/:path*']
+  // Match all pathnames except for
+  // - … if they start with `/api`, `/_next` or `/_vercel`
+  // - … the ones containing a dot (e.g. `favicon.ico`)
+  // Adjust matcher as needed, this is a common default
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'] 
 }; 
