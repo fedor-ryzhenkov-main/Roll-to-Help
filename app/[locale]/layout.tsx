@@ -4,7 +4,8 @@ import NavBar from '@/app/components/NavBar'
 import NextAuthProvider from '@/app/components/NextAuthProvider'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import {NextIntlClientProvider, useMessages} from 'next-intl'; 
+import {NextIntlClientProvider} from 'next-intl'; 
+import { getMessages } from 'next-intl/server';
 import {ReactNode} from 'react';
 import { Poppins } from 'next/font/google'
 
@@ -25,7 +26,7 @@ export default async function RootLayout({
   params: {locale} 
 }: Props) {
   const session = await getServerSession(authOptions); 
-  const messages = useMessages(); 
+  const messages = await getMessages(); 
 
   return (
     <html lang={locale}> 
