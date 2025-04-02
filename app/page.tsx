@@ -5,6 +5,16 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-100 via-amber-50 to-amber-100 flex flex-col items-center justify-center text-center px-4 py-12">
       <main className="max-w-3xl">
+        <div className="flex justify-center mb-6">
+          <Image 
+            src="/roll-to-help-logo.png" 
+            alt="Roll to Help Logo" 
+            width={180} 
+            height={180}
+            className="mx-auto"
+          />
+        </div>
+        
         <h1 className="text-5xl md:text-6xl font-bold text-purple-900 mb-6">
           Roll to Help
         </h1>
@@ -46,7 +56,7 @@ export default function HomePage() {
             href="/games"
             className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition duration-300 transform hover:scale-105"
           >
-            Смотреть Игры
+            Участвовать в аукционе
           </Link>
         </div>
       </main>

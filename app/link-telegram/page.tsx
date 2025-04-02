@@ -10,10 +10,7 @@ export default function LinkTelegramPage() {
     <div className="min-h-screen bg-amber-50 py-12">
       <main className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-4xl font-bold text-center text-purple-900 mb-2">Подключение Telegram</h1>
-          <p className="text-center text-gray-600 mb-8">
-            Привяжите свой аккаунт Telegram для размещения ставок и получения уведомлений о наших благотворительных мероприятиях.
-          </p>
+          <h1 className="text-4xl font-bold text-center text-purple-900 mb-8">Подключение Telegram</h1>
           
           <div className="mb-8">
             <TelegramLogin />
@@ -32,7 +29,7 @@ export default function LinkTelegramPage() {
                 <span className="font-medium">Нажмите на ссылку для входа</span>, которую получите в Telegram
               </li>
               <li className="text-gray-700">
-                <span className="font-medium">Начните делать ставки</span> на благотворительные настольные игры!
+                <span className="font-medium">Начните участвовать</span> в благотворительном аукционе настольных игр!
               </li>
             </ol>
           </div>
@@ -47,7 +44,7 @@ export default function LinkTelegramPage() {
                   </svg>
                 </div>
                 <p className="ml-2 text-gray-700">
-                  <strong>Ставки на игры:</strong> Делайте ставки на благотворительные сессии настольных игр.
+                  <strong>Участие в аукционе:</strong> Участвуйте в благотворительном аукционе настольных игр.
                 </p>
               </div>
               <div className="flex items-start">

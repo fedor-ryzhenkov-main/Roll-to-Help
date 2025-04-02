@@ -17,8 +17,8 @@ interface PlaceBidProps {
 // Define form schema dynamically based on minimum bid required
 const createBidSchema = (minBid: number) => z.object({
   amount: z.number()
-            .positive('Bid must be positive')
-            .min(minBid, `Bid must be at least $${minBid.toFixed(2)} to be winning`)
+            .positive('Сумма должна быть положительной')
+            .min(minBid, `Сумма должна быть не менее $${minBid.toFixed(2)}, чтобы выиграть`)
             // Optional: Add a reasonable upper limit if desired
             // .max(10000, 'Maximum bid limit reached'),
 });
@@ -54,7 +54,7 @@ export default function PlaceBid({ gameId, startingBid, currentMinWinningBid }: 
     }
 
     if (!session?.user.isVerified) {
-      setError('Please verify your Telegram account before bidding.');
+      setError('Пожалуйста, подтвердите свой аккаунт Telegram перед участием в аукционе.');
       setIsLoading(false);
       return;
     }
@@ -69,49 +69,49 @@ export default function PlaceBid({ gameId, startingBid, currentMinWinningBid }: 
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to place bid');
+        throw new Error(result.message || 'Не удалось сделать ставку');
       }
 
       // Success!
-      setSuccessMessage(`Successfully placed bid of $${data.amount.toFixed(2)}!`);
+      setSuccessMessage(`Успешно! Ваша ставка $${data.amount.toFixed(2)} принята!`);
       reset(); // Reset form fields
       router.refresh(); // Refresh server components (bid list)
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      setError(err instanceof Error ? err.message : 'Произошла непредвиденная ошибка');
     } finally {
       setIsLoading(false);
     }
   };
 
   if (status === 'loading') {
-    return <div className="text-center text-gray-500">Loading...</div>;
+    return <div className="text-center text-gray-500">Загрузка...</div>;
   }
 
   return (
     <div className="bg-amber-50 p-6 rounded-lg shadow-inner">
-      <h2 className="text-xl font-semibold text-purple-900 mb-4">Place Your Bid</h2>
+      <h2 className="text-xl font-semibold text-purple-900 mb-4">Участвуйте в благотворительном аукционе</h2>
 
       {status === 'unauthenticated' ? (
         <button 
           onClick={() => signIn(undefined, { callbackUrl: `/games/${gameId}` })}
           className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
         >
-          Login to Place Bid
+          Войдите для участия в аукционе
         </button>
       ) : !session?.user.isVerified ? (
         <div className="text-center p-4 bg-orange-100 border border-orange-300 text-orange-700 rounded-md">
-          <p className="font-medium">Verification Required</p>
-          <p className="text-sm mb-3">Please link and verify your Telegram account to place bids.</p>
+          <p className="font-medium">Требуется подтверждение</p>
+          <p className="text-sm mb-3">Пожалуйста, привяжите и подтвердите свой аккаунт Telegram для участия в аукционе.</p>
           <Link href="/link-telegram" className="text-orange-600 hover:underline text-sm font-medium">
-             Go to Verification
+             Перейти к подтверждению
           </Link>
         </div>
       ) : (
         <form onSubmit={handleSubmit(handlePlaceBid)} className="space-y-4">
           <div>
             <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-              Your Bid Amount ($)
+              Ваша ставка ($)
             </label>
             <input
               id="amount"
@@ -119,7 +119,7 @@ export default function PlaceBid({ gameId, startingBid, currentMinWinningBid }: 
               step="0.01" // Allow cents
               {...register('amount', { valueAsNumber: true })} // Ensure value is treated as number
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'}`}
-              placeholder={`Min $${minBidRequired.toFixed(2)}`}
+              placeholder={`Минимум $${minBidRequired.toFixed(2)}`}
             />
             {errors.amount && (
               <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
@@ -148,10 +148,10 @@ export default function PlaceBid({ gameId, startingBid, currentMinWinningBid }: 
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Placing Bid...
+                Отправка ставки...
               </span>
             ) : (
-              'Place Bid'
+              'Сделать ставку'
             )}
           </button>
         </form>

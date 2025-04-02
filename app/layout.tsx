@@ -17,6 +17,10 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'Игротека',
   description: 'Благотворительная игротека настольных игр',
+  icons: {
+    icon: '/roll-to-help-logo.png',
+    apple: '/roll-to-help-logo.png',
+  },
 }
 
 export const viewport: Viewport = {

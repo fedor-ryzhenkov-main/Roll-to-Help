@@ -9,7 +9,7 @@ import { signIn, useSession } from 'next-auth/react';
 
 // Define form schema
 const telegramLoginSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters'),
+  username: z.string().min(3, 'Имя пользователя должно содержать не менее 3 символов'),
 });
 
 type TelegramLoginFormData = z.infer<typeof telegramLoginSchema>;
@@ -60,7 +60,7 @@ export default function TelegramLogin() {
       } else {
         // API error
         setVerificationStatus('error');
-        setError(data.error || 'Failed to check verification status');
+        setError(data.error || 'Не удалось проверить статус верификации');
         
         // Clear polling timer
         if (pollingTimerRef.current) {
@@ -70,7 +70,7 @@ export default function TelegramLogin() {
       }
     } catch (err) {
       setVerificationStatus('error');
-      setError(err instanceof Error ? err.message : 'Failed to check verification status');
+      setError(err instanceof Error ? err.message : 'Не удалось проверить статус верификации');
       
       // Clear polling timer
       if (pollingTimerRef.current) {
@@ -106,7 +106,7 @@ export default function TelegramLogin() {
         clearInterval(pollingTimerRef.current);
         pollingTimerRef.current = null;
       }
-      setError('Verification timeout. Please try again.');
+      setError('Время верификации истекло. Пожалуйста, попробуйте снова.');
     }
   }, [pollCount]);
   
@@ -128,12 +128,12 @@ export default function TelegramLogin() {
       const result = await response.json();
       
       if (!result.success) {
-        throw new Error(result.error || 'Failed to generate verification code');
+        throw new Error(result.error || 'Не удалось сгенерировать код верификации');
       }
       
       setVerificationCode(result.verificationCode);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : 'Что-то пошло не так');
     } finally {
       setIsLoading(false);
     }
@@ -141,11 +141,11 @@ export default function TelegramLogin() {
   
   return (
     <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
-      <h2 className="text-2xl font-bold text-purple-900 mb-6">Login with Telegram</h2>
+      <h2 className="text-2xl font-bold text-purple-900 mb-6">Вход через Telegram</h2>
       
       {verificationCode ? (
         <div className="text-center">
-          <p className="mb-4">Your verification code:</p>
+          <p className="mb-4">Ваш код верификации:</p>
           <div className="bg-amber-50 p-4 rounded-md mb-6">
             <span className="text-2xl font-mono font-bold tracking-wider">{verificationCode}</span>
           </div>
@@ -158,19 +158,19 @@ export default function TelegramLogin() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Waiting for verification...
+                Ожидание верификации...
               </div>
             )}
             
             {verificationStatus === 'verified' && (
               <div className="text-green-600 font-medium">
-                ✓ Verified! Redirecting...
+                ✓ Подтверждено! Перенаправление...
               </div>
             )}
             
             {verificationStatus === 'error' && (
               <div className="text-red-600">
-                {error || 'An error occurred during verification.'}
+                {error || 'Произошла ошибка во время верификации.'}
               </div>
             )}
           </div>
@@ -178,19 +178,19 @@ export default function TelegramLogin() {
           <ol className="text-left mb-6 space-y-2">
             <li className="flex items-start">
               <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">1</span>
-              <span>Open Telegram and search for <a href="https://t.me/roll_to_help_bot" target="_blank" rel="noopener noreferrer" className="text-orange-600 font-medium">@roll_to_help_bot</a></span>
+              <span>Откройте Telegram и найдите <a href="https://t.me/roll_to_help_bot" target="_blank" rel="noopener noreferrer" className="text-orange-600 font-medium">@roll_to_help_bot</a></span>
             </li>
             <li className="flex items-start">
               <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">2</span>
-              <span>Start the bot by clicking "Start" or typing /start</span>
+              <span>Запустите бота, нажав "Start" или набрав /start</span>
             </li>
             <li className="flex items-start">
               <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">3</span>
-              <span>Send your verification code to the bot</span>
+              <span>Отправьте код верификации боту</span>
             </li>
             <li className="flex items-start">
               <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">4</span>
-              <span>Wait here while we verify your account</span>
+              <span>Подождите здесь, пока мы верифицируем ваш аккаунт</span>
             </li>
           </ol>
           <button
@@ -205,21 +205,21 @@ export default function TelegramLogin() {
             }}
             className="text-sm text-gray-500 hover:text-gray-700"
           >
-            Try again with a different username
+            Попробовать снова с другим именем пользователя
           </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Enter your username
+              Введите имя пользователя
             </label>
             <input
               id="username"
               type="text"
               {...register('username')}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              placeholder="Your username (at least 3 characters)"
+              placeholder="Ваше имя пользователя (минимум 3 символа)"
             />
             {errors.username && (
               <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>
@@ -243,16 +243,12 @@ export default function TelegramLogin() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Processing...
+                Обработка...
               </span>
             ) : (
-              'Generate Verification Code'
+              'Сгенерировать код верификации'
             )}
           </button>
-          
-          <div className="text-sm text-gray-500 mt-4">
-            <p>You&apos;ll generate a code that you&apos;ll send to our Telegram bot to verify your account.</p>
-          </div>
         </form>
       )}
     </div>
