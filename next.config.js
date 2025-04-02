@@ -1,3 +1,7 @@
+const createNextIntlPlugin = require('next-intl/plugin');
+
+const withNextIntl = createNextIntlPlugin();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -32,4 +36,4 @@ const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'prisma'],
 }
 
-export default nextConfig; 
+module.exports = withNextIntl(nextConfig); 
