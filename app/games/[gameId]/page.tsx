@@ -1,9 +1,8 @@
 import prisma from "@/app/lib/db";
-import {Link} from '@/i18n/navigation';
+import Link from 'next/link';
 import Image from "next/image";
 import { notFound } from 'next/navigation';
 import PlaceBid from '@/app/components/PlaceBid';
-import { setRequestLocale, getTranslations } from 'next-intl/server';
 
 // Fetch game data including top bids
 async function getGameData(gameId: number) {
@@ -42,28 +41,24 @@ async function getGameData(gameId: number) {
 }
 
 interface GamePageProps {
-  params: { gameId: string; locale: string };
+  params: { gameId: string };
 }
 
-// Generate Metadata dynamically (needs locale)
+// Generate Metadata dynamically
 export async function generateMetadata({ params }: GamePageProps) {
   const gameId = parseInt(params.gameId, 10);
-  if (isNaN(gameId)) return { title: 'Game Not Found' };
+  if (isNaN(gameId)) return { title: 'Игра не найдена' };
   
-  const { game } = await getGameData(gameId); 
-  const t = await getTranslations({locale: params.locale, namespace: 'Metadata'});
+  const { game } = await getGameData(gameId);
   
   return {
-    title: `${game.title} - Roll to Help Auction`,
-    description: game.description || `Bid on a seat for the ${game.title} tabletop game session.`,
+    title: `${game.title} - Roll to Help Аукцион`,
+    description: game.description || `Сделайте ставку на место в игре ${game.title}.`,
   };
 }
 
 export default async function GamePage({ params }: GamePageProps) {
   const gameId = parseInt(params.gameId, 10);
-  const locale = params.locale;
-  
-  setRequestLocale(locale);
   
   if (isNaN(gameId)) {
       notFound();
@@ -76,7 +71,7 @@ export default async function GamePage({ params }: GamePageProps) {
       <main className="container mx-auto px-4">
         {/* Back Link */}
         <Link href="/games" className="text-orange-600 hover:text-orange-700 font-medium inline-block mb-6">
-          &larr; Back to Games
+          &larr; Назад к играм
         </Link>
 
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -87,8 +82,8 @@ export default async function GamePage({ params }: GamePageProps) {
                 <Image
                   src={game.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'}
                   alt={game.title}
-                  layout="fill"
-                  objectFit="cover"
+                  fill
+                  style={{ objectFit: "cover" }}
                 />
               </div>
             </div>
@@ -96,22 +91,22 @@ export default async function GamePage({ params }: GamePageProps) {
             {/* Details */}
             <div className="p-8 flex-grow">
               <h1 className="text-3xl font-bold text-purple-900 mb-4">{game.title}</h1>
-              <p className="text-gray-700 mb-4">{game.description || 'No description available.'}</p>
+              <p className="text-gray-700 mb-4">{game.description || 'Описание отсутствует.'}</p>
               <div className="grid grid-cols-2 gap-4 text-sm mb-6">
                 <div>
-                  <span className="font-semibold text-gray-600 block">Game Master:</span>
-                  <span>{game.gameMaster || 'TBA'}</span>
+                  <span className="font-semibold text-gray-600 block">Ведущий:</span>
+                  <span>{game.gameMaster || 'Будет объявлен позже'}</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600 block">Total Seats:</span>
+                  <span className="font-semibold text-gray-600 block">Всего мест:</span>
                   <span>{game.totalSeats}</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600 block">Event:</span>
+                  <span className="font-semibold text-gray-600 block">Событие:</span>
                   <span>{game.event.name}</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-600 block">Starting Bid:</span>
+                  <span className="font-semibold text-gray-600 block">Начальная ставка:</span>
                   <span>${game.startingBid.toFixed(2)}</span>
                 </div>
               </div>
@@ -122,15 +117,15 @@ export default async function GamePage({ params }: GamePageProps) {
           <div className="p-8 border-t border-gray-200 md:flex md:space-x-8">
             {/* Top Bids */}
             <div className="md:w-1/2 mb-8 md:mb-0">
-              <h2 className="text-xl font-semibold text-purple-900 mb-4">Current Top Bids ({topBids.length} / {game.totalSeats} Seats)</h2>
+              <h2 className="text-xl font-semibold text-purple-900 mb-4">Текущие ставки ({topBids.length} / {game.totalSeats} мест)</h2>
               {topBids.length === 0 ? (
-                <p className="text-gray-600 italic">No bids placed yet. Be the first!</p>
+                <p className="text-gray-600 italic">Ставок еще нет. Будьте первым!</p>
               ) : (
                 <ul className="space-y-2">
                   {topBids.map((bid, index) => (
                     <li key={bid.id} className="flex justify-between items-center p-2 bg-amber-50 rounded">
                       <span className="font-medium">
-                        {index + 1}. {bid.user?.username || bid.user?.telegramUsername || 'Anonymous'}
+                        {index + 1}. {bid.user?.username || bid.user?.telegramUsername || 'Аноним'}
                       </span>
                       <span className="font-bold text-purple-800">
                         ${bid.amount.toFixed(2)}
@@ -140,7 +135,7 @@ export default async function GamePage({ params }: GamePageProps) {
                 </ul>
               )}
               <p className="text-sm text-gray-500 mt-4">
-                Minimum bid to be in the top {game.totalSeats}: ${currentMinWinningBid.toFixed(2)}
+                Минимальная ставка для попадания в топ {game.totalSeats}: ${currentMinWinningBid.toFixed(2)}
               </p>
             </div>
             

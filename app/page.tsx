@@ -1,40 +1,30 @@
-import { useTranslations } from 'next-intl';
-import { setRequestLocale } from 'next-intl/server';
-import {Link} from '@/i18n/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 
-type Props = {
-  params: {locale: string};
-};
-
-export default function HomePage({params: {locale}}: Props) {
-  setRequestLocale(locale);
-
-  const t = useTranslations('HomePage');
-
+export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-100 via-amber-50 to-amber-100 flex flex-col items-center justify-center text-center px-4 py-12">
       <main className="max-w-3xl">
         <h1 className="text-5xl md:text-6xl font-bold text-purple-900 mb-6">
-          {t('title')}
+          Roll to Help
         </h1>
         <p className="text-lg md:text-xl text-gray-700 mb-10 max-w-xl mx-auto">
-          {t('description')}
+          Благотворительная НРИ-игротека в Тбилиси. Все сборы пойдут на помощь Choose to Help, волонтёрской организации занимающейся помощью Украинским беженцам.
         </p>
 
         <div className="bg-white rounded-lg shadow-lg p-6 md:p-8 mb-10 inline-block text-left space-y-4">
           <div className="flex items-center">
             <span className="text-purple-600 mr-3 text-xl">📍</span>
             <div>
-              <p className="font-semibold text-gray-600">{t('whereLabel')}</p>
-              <p className="text-gray-800">{t('whereValue')}</p>
+              <p className="font-semibold text-gray-600">Где</p>
+              <p className="text-gray-800">Клуб "MESTO" на Техническом Университете</p>
             </div>
           </div>
           <div className="flex items-center">
             <span className="text-purple-600 mr-3 text-xl">📅</span>
             <div>
-              <p className="font-semibold text-gray-600">{t('whenLabel')}</p>
-              <p className="text-gray-800">{t('whenValue')}</p>
+              <p className="font-semibold text-gray-600">Когда</p>
+              <p className="text-gray-800">Пятница, 25 Апреля, 18:00</p>
             </div>
           </div>
           <div className="flex items-center">
@@ -43,7 +33,7 @@ export default function HomePage({params: {locale}}: Props) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
              <div>
-              <p className="font-semibold text-gray-600">{t('telegramLabel')}</p>
+              <p className="font-semibold text-gray-600">Телеграм Канал</p>
               <a href="https://t.me/Roll_to_help" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                 https://t.me/Roll_to_help
               </a>
@@ -56,7 +46,7 @@ export default function HomePage({params: {locale}}: Props) {
             href="/games"
             className="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition duration-300 transform hover:scale-105"
           >
-            {t('joinGamesButton')}
+            Смотреть Игры
           </Link>
         </div>
       </main>

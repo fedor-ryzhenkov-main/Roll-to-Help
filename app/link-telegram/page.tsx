@@ -1,8 +1,8 @@
 import TelegramLogin from '@/app/components/auth/TelegramLogin';
 
 export const metadata = {
-  title: 'Login with Telegram - Roll to Help',
-  description: 'Connect your Telegram account to participate in our charity tabletop events',
+  title: 'Вход через Telegram - Roll to Help',
+  description: 'Подключите свой Telegram аккаунт для участия в наших благотворительных настольных мероприятиях',
 };
 
 export default function LinkTelegramPage() {
@@ -10,9 +10,9 @@ export default function LinkTelegramPage() {
     <div className="min-h-screen bg-amber-50 py-12">
       <main className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-4xl font-bold text-center text-purple-900 mb-2">Connect with Telegram</h1>
+          <h1 className="text-4xl font-bold text-center text-purple-900 mb-2">Подключение Telegram</h1>
           <p className="text-center text-gray-600 mb-8">
-            Link your Telegram account to place bids and receive notifications about our charity events.
+            Привяжите свой аккаунт Telegram для размещения ставок и получения уведомлений о наших благотворительных мероприятиях.
           </p>
           
           <div className="mb-8">
@@ -20,25 +20,25 @@ export default function LinkTelegramPage() {
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-purple-900 mb-4">How It Works</h2>
+            <h2 className="text-xl font-semibold text-purple-900 mb-4">Как это работает</h2>
             <ol className="space-y-4 list-decimal list-inside">
               <li className="text-gray-700">
-                <span className="font-medium">Generate a code</span> on this page
+                <span className="font-medium">Получите код</span> на этой странице
               </li>
               <li className="text-gray-700">
-                <span className="font-medium">Send the code</span> to our Telegram bot
+                <span className="font-medium">Отправьте код</span> нашему Telegram боту
               </li>
               <li className="text-gray-700">
-                <span className="font-medium">Click the login link</span> you receive in Telegram
+                <span className="font-medium">Нажмите на ссылку для входа</span>, которую получите в Telegram
               </li>
               <li className="text-gray-700">
-                <span className="font-medium">Start bidding</span> on charity tabletop games!
+                <span className="font-medium">Начните делать ставки</span> на благотворительные настольные игры!
               </li>
             </ol>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-md mt-8">
-            <h2 className="text-xl font-semibold text-purple-900 mb-4">Why Connect with Telegram?</h2>
+            <h2 className="text-xl font-semibold text-purple-900 mb-4">Зачем подключать Telegram?</h2>
             <div className="space-y-4">
               <div className="flex items-start">
                 <div className="flex-shrink-0 mt-1">
@@ -47,7 +47,7 @@ export default function LinkTelegramPage() {
                   </svg>
                 </div>
                 <p className="ml-2 text-gray-700">
-                  <strong>Bid on Games:</strong> Place bids on charity tabletop gaming sessions.
+                  <strong>Ставки на игры:</strong> Делайте ставки на благотворительные сессии настольных игр.
                 </p>
               </div>
               <div className="flex items-start">
@@ -57,7 +57,7 @@ export default function LinkTelegramPage() {
                   </svg>
                 </div>
                 <p className="ml-2 text-gray-700">
-                  <strong>Instant Notifications:</strong> Receive alerts when you're outbid or win an auction.
+                  <strong>Мгновенные уведомления:</strong> Получайте оповещения, когда вас перебивают или вы выигрываете аукцион.
                 </p>
               </div>
               <div className="flex items-start">
@@ -67,7 +67,7 @@ export default function LinkTelegramPage() {
                   </svg>
                 </div>
                 <p className="ml-2 text-gray-700">
-                  <strong>Secure Verification:</strong> Ensure that all participants are real people.
+                  <strong>Безопасная верификация:</strong> Гарантия того, что все участники — реальные люди.
                 </p>
               </div>
             </div>

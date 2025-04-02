@@ -18,10 +18,10 @@ export default function Error({
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-16">
       <div className="text-center max-w-xl mx-auto">
-        <h1 className="text-4xl font-bold mb-6 text-red-600">Something went wrong!</h1>
+        <h1 className="text-4xl font-bold mb-6 text-red-600">Что-то пошло не так!</h1>
         
         <p className="text-lg text-gray-700 mb-8">
-          We apologize for the inconvenience. An unexpected error has occurred.
+          Приносим извинения за неудобства. Произошла непредвиденная ошибка.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -29,14 +29,14 @@ export default function Error({
             onClick={reset}
             className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
           >
-            Try again
+            Попробовать снова
           </button>
           
           <Link 
             href="/"
             className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
           >
-            Go back home
+            Вернуться на главную
           </Link>
         </div>
       </div>
