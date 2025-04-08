@@ -1,12 +1,20 @@
 import prisma from "@/app/lib/db";
 import Link from 'next/link';
 import Image from "next/image";
+import { logApiError } from "@/app/lib/api-utils"; // Assuming this is correctly importable
+
+// Force dynamic rendering to ensure this runs on every request in production
+export const dynamic = 'force-dynamic';
 
 // Fetch active games from the database
 async function getActiveGames() {
-  console.log('[getActiveGames] Fetching active games...');
+  // ADDED: Log entry into the function
+  console.log('[getActiveGames] ENTERING FUNCTION - Production Test');
+  console.log('[getActiveGames] Fetching active games (checking for events with isActive: true)...');
   try {
     const now = new Date();
+    // ADDED: Log before the query
+    console.log('[getActiveGames] Executing prisma.game.findMany...');
     const games = await prisma.game.findMany({
       where: {
         event: {
@@ -24,10 +32,12 @@ async function getActiveGames() {
         name: "asc", // <-- Change 'title' to 'name'
       },
     });
-    console.log(`[getActiveGames] Found ${games.length} active games.`);
+    // ADDED: Log after the query with count
+    console.log(`[getActiveGames] Prisma query finished. Found ${games.length} active games.`);
     return games;
   } catch (error: any) {
-    console.error('[getActiveGames] Error fetching games:', error.message);
+    // Ensure error logging captures details
+    console.error('[getActiveGames] ERROR fetching games:', error.message, error.stack);
     logApiError('get-active-games', error); // Assuming logApiError is available/importable here, adjust if not
     return []; // Return empty array on error to prevent breaking the page
   }

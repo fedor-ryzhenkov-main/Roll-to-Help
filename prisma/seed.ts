@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { addMinutes } from 'date-fns' // Ensure date-fns is imported
+import { addMinutes } from 'date-fns' 
 
 const prisma = new PrismaClient()
 
@@ -17,7 +17,7 @@ async function main() {
   // Define the event date details - make it relative for easier testing
   const eventDate = addMinutes(new Date(), 60 * 24); // Example: Event starts 1 day from now
   // Set the specific auction end date: April 22nd, 18:00 Tbilisi (UTC+4)
-  const auctionEndDate = new Date('2024-04-22T14:00:00Z'); 
+  const auctionEndDate = new Date('2025-04-22T14:00:00Z'); 
   console.log(`Setting event end date to: ${auctionEndDate.toISOString()} (April 22, 18:00 GET)`);
 
   // Create the Roll to Help charity event
