@@ -10,6 +10,7 @@ import {
   linkTelegramToVerificationCode
 } from '@/app/services/telegramService';
 import { logApiError } from '@/app/lib/api-utils';
+import { timingSafeEqual } from 'crypto';
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -366,5 +367,57 @@ export async function sendTelegramMessage(
   }
 }
 
-// Export necessary functions
-export { getBotInstance, getTelegramApi }; 
+/**
+ * Handles incoming webhook updates.
+ * @param requestBody The parsed JSON body from the incoming webhook request.
+ * @param secretTokenHeader The value of the X-Telegram-Bot-Api-Secret-Token header, if present.
+ * @returns {Promise<boolean>} True if the update was handled successfully (or ignored due to bad secret), false otherwise.
+ */
+async function handleWebhookUpdateDefinition(requestBody: any, secretTokenHeader?: string): Promise<boolean> {
+   const bot = getBotInstance(); // Get the bot instance lazily
+    if (!bot) {
+        console.error('[Telegram Handler] Cannot handle update: Bot instance not available.');
+        return false;
+    }
+    
+    // Verify secret token if it's configured and provided
+    const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (configuredSecret) { 
+        if (!secretTokenHeader) {
+             console.warn('[Telegram Handler] Missing X-Telegram-Bot-Api-Secret-Token header, but secret is configured. Ignoring update.');
+             return false;
+        }
+        // Use timingSafeEqual for security
+        try {
+            const secretBuffer = Buffer.from(configuredSecret);
+            const headerBuffer = Buffer.from(secretTokenHeader);
+            // Check length first for efficiency and to prevent timing attacks on unequal lengths
+            if (secretBuffer.length !== headerBuffer.length || !timingSafeEqual(secretBuffer, headerBuffer)) {
+                 console.warn('[Telegram Handler] Invalid X-Telegram-Bot-Api-Secret-Token received. Ignoring update.');
+                 return false;
+            }
+        } catch (e) {
+            console.error('[Telegram Handler] Error comparing secret tokens.', e);
+            return false;
+        }
+    }
+    // If no secret is configured, we proceed without checking the header.
+
+    try {
+        console.log('[Telegram Handler] Handling webhook update...');
+        // Telegraf's handleUpdate processes the update using the bot's middleware (commands, etc.)
+        await bot.handleUpdate(requestBody);
+        console.log('[Telegram Handler] Webhook update processed by bot.');
+        return true;
+    } catch (error: any) {
+        console.error('[Telegram Handler] Error handling webhook update within bot:', error.message);
+        logApiError('handle-telegram-webhook-internal', error);
+        return false;
+    }
+}
+
+// Assign the single definition to the exported name
+const handleWebhookUpdate = handleWebhookUpdateDefinition;
+
+// Export necessary functions (ensure only listed once)
+export { getBotInstance, getTelegramApi, handleWebhookUpdate }; 
