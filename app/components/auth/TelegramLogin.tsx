@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTelegram } from '@/app/context/TelegramContext';
 import { apiClient } from '@/app/utils/api-client';
 import { toast } from 'react-hot-toast';
 import { ApiError } from '@/app/utils/api-client';
+import { Button } from '@/app/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 // Define type for user info received
 interface UserInfo {
@@ -25,12 +27,12 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   const [channelId, setChannelId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'pending' | 'verified' | 'error'>('idle');
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('callbackUrl') || callbackUrl || '/';
   const wsRef = useRef<WebSocket | null>(null);
-  const { setLinkedTelegramInfo } = useTelegram();
+  const { setLinkedTelegramInfo, setIsLoading: setTelegramLoading } = useTelegram();
   
   useEffect(() => {
     return () => {
@@ -41,8 +43,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   useEffect(() => {
     if (verificationCode && channelId && verificationStatus === 'pending') {
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsPort = process.env.NEXT_PUBLIC_WS_PORT || '3001';
-      const wsUrl = `${wsProtocol}//${window.location.hostname}:${wsPort}`;
+      const wsUrl = `${wsProtocol}//${window.location.hostname}`;
       
       console.log(`Connecting WebSocket to ${wsUrl} for channel ${channelId}`);
       wsRef.current = new WebSocket(wsUrl);
@@ -63,8 +64,9 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
             // --- Update Context First ---
             // The received message.user should now match UserInfo structure
             console.log('[TelegramLogin] Calling setLinkedTelegramInfo with:', message.user);
+            setTelegramLoading(true);
             setLinkedTelegramInfo(message.user as UserInfo); 
-            setVerificationStatus('verified');
+            setVerificationStatus('success');
             toast.success('Аккаунт успешно связан!');
             // ---------------------------
 
@@ -81,6 +83,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
                 setError('Ошибка установки сессии. Попробуйте обновить страницу.');
                 toast.error('Ошибка входа. Обновите страницу.');
                 wsRef.current?.close(); // Close WS on failure
+                setTelegramLoading(false);
                 return; // Stop further execution here
               } 
               
@@ -106,6 +109,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
               setError('Ошибка связи с сервером для установки сессии.');
               toast.error('Ошибка сервера при входе.');
               wsRef.current?.close(); // Close WS on failure
+              setTelegramLoading(false);
             }
             // --------------------------------------------
             
@@ -113,6 +117,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
              console.error('[TelegramLogin] Received error message via WebSocket:', message.error);
              setError(message.error || 'Ошибка верификации на сервере.');
              setVerificationStatus('error');
+             toast.error(message.error || 'Ошибка верификации.');
              wsRef.current?.close();
           } else if (message.type === 'registered'){
              console.log(`WebSocket registered for channel: ${message.channelId}`);
@@ -129,8 +134,9 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
 
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
-        setError('Ошибка WebSocket соединения.');
+        setError('Ошибка WebSocket соединения. Убедитесь, что подключение к интернету стабильно.');
         setVerificationStatus('error');
+        toast.error('Ошибка соединения WebSocket.');
       };
 
       wsRef.current.onclose = (event) => {
@@ -146,7 +152,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
         wsRef.current?.close();
       };
     }
-  }, [verificationCode, channelId, verificationStatus, setLinkedTelegramInfo, router, returnUrl]);
+  }, [verificationCode, channelId, verificationStatus, setLinkedTelegramInfo, router, returnUrl, setTelegramLoading]);
   
   const handleGenerateCodeClick = async () => {
     if (isLoading) return; 
@@ -190,106 +196,48 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   };
   
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md max-w-md mx-auto">
-      <h2 className="text-2xl font-bold text-purple-900 mb-6">Связь с Telegram</h2>
+    <div className="flex flex-col items-center space-y-4 p-4 border rounded-lg shadow-md max-w-sm mx-auto">
+      <h2 className="text-xl font-semibold">Вход через Telegram</h2>
       
-      {verificationCode && channelId && verificationStatus !== 'verified' ? (
-        <div className="text-center">
-          <p className="mb-4">Ваш код верификации:</p>
-          <div className="bg-amber-50 p-4 rounded-md mb-6">
-            <span className="text-2xl font-mono font-bold tracking-wider">{verificationCode}</span>
-          </div>
-          
-          <div className="mb-6">
-            {verificationStatus === 'pending' && (
-              <div className="flex items-center justify-center text-amber-600">
-                <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Ожидание верификации через Telegram...
-              </div>
-            )}
-            
-            {verificationStatus === 'error' && (
-              <div className="text-red-600">
-                {error || 'Произошла ошибка во время верификации.'}
-              </div>
-            )}
-          </div>
-          
-          <ol className="text-left mb-6 space-y-2">
-            <li className="flex items-start">
-              <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">1</span>
-              <span>Откройте Telegram и найдите <a href="https://t.me/roll_to_help_bot" target="_blank" rel="noopener noreferrer" className="text-orange-600 font-medium">@roll_to_help_bot</a></span>
-            </li>
-            <li className="flex items-start">
-              <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">2</span>
-              <span>Запустите бота, нажав "Start" или набрав /start</span>
-            </li>
-            <li className="flex items-start">
-              <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">3</span>
-              <span>Отправьте код верификации боту</span>
-            </li>
-            <li className="flex items-start">
-              <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">4</span>
-              <span>Подождите здесь, пока мы верифицируем ваш аккаунт</span>
-            </li>
-          </ol>
-          <button
-            onClick={() => {
-              setVerificationCode(null);
-              setChannelId(null);
-              setVerificationStatus('idle');
-              setError(null);
-              wsRef.current?.close();
-            }}
-            className="text-sm text-gray-500 hover:text-gray-700 mt-4"
-          >
-            Отмена / Попробовать снова
-          </button>
-        </div>
-      ) : verificationStatus === 'verified' ? (
-         <div className="text-center p-4 bg-green-50 rounded-md">
-            <p className="text-green-700 font-semibold">Успешно связано!</p>
-            <p className="text-gray-600 mt-2">
-                Вы вошли в систему. Теперь вы можете участвовать в аукционе.
-            </p>
-            <button 
-                onClick={() => router.push('/games')}
-                className="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-            >
-                Перейти к играм
-            </button>
-         </div>
-      ) : (
-        <div className="space-y-4">
-          {error && (
-            <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm">
-              {error}
-            </div>
-          )}
-          
-          <button
-            type="button"
-            onClick={handleGenerateCodeClick}
-            disabled={isLoading}
-            className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md flex items-center justify-center transition-colors"
-          >
-            {isLoading ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Генерация кода...
-              </span>
-            ) : (
-              'Получить код для связи с Telegram'
-            )}
-          </button>
+      {!verificationCode && (
+        <Button onClick={handleGenerateCodeClick} disabled={isLoading}>
+          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {isLoading ? 'Генерация...' : 'Получить код для входа'}
+        </Button>
+      )}
+
+      {isLoading && verificationStatus === 'idle' && (
+        <p className="text-sm text-gray-500">Генерируем код...</p>
+      )}
+
+      {verificationCode && verificationStatus === 'pending' && (
+        <div className="text-center space-y-2">
+          <p>Отправьте этот код нашему Telegram боту:</p>
+          <p className="text-2xl font-bold tracking-widest bg-gray-100 px-4 py-2 rounded">{verificationCode}</p>
+          <p className="text-sm text-gray-500">Ожидаем подтверждения от Telegram...</p>
+           <Loader2 className="mx-auto h-6 w-6 animate-spin text-blue-500" />
         </div>
       )}
+
+      {verificationStatus === 'success' && (
+        <p className="text-green-600">Вход выполнен успешно!</p>
+      )}
+
+      {error && (
+        <p className="text-red-600 text-sm">Ошибка: {error}</p>
+      )}
+
+      {verificationStatus !== 'pending' && verificationStatus !== 'success' && verificationCode && (
+          <Button onClick={handleGenerateCodeClick} disabled={isLoading} variant="outline" size="sm">
+             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+             Получить новый код
+          </Button>
+      )}
+      
+      {/* Link to Telegram bot - replace with your bot username */}
+      <a href="https://t.me/rolltohelp_bot" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+        Открыть @rolltohelp_bot в Telegram
+      </a>
     </div>
   );
 } 
