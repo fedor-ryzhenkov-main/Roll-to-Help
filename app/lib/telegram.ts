@@ -233,17 +233,23 @@ function configureBot() {
               type: 'sessionCreated',
               user: { 
                   id: verificationResult.user.id,
-                  telegramFirstName: verificationResult.user.telegramFirstName, // Now directly available
+                  telegramFirstName: verificationResult.user.telegramFirstName,
                   telegramUsername: verificationResult.user.telegramUsername,
-                  // Add other fields if they were added to LinkResult.user
-                  // isAdmin: verificationResult.user.isAdmin, 
-                  // isVerified: verificationResult.user.isVerified, // REMOVED
               },
               sessionId: verificationResult.sessionId
           };
           
-          const wsServerUrl = `http://localhost:${process.env.WS_PORT || '3001'}/send`;
+          // Use environment variable for internal WS server URL
+          const wsServerUrl = process.env.INTERNAL_WEBSOCKET_URL; 
+          if (!wsServerUrl) {
+             console.error('[Telegram Handler] INTERNAL_WEBSOCKET_URL environment variable is not set! Cannot notify browser.');
+             // Optional: Reply to user that verification succeeded but login might require manual refresh
+             // await ctx.reply('Верификация успешна, но автоматический вход мог не сработать. Пожалуйста, обновите страницу на сайте.');
+             return; // Stop processing if URL is missing
+          }
+
           try {
+              console.log(`[Telegram Handler] Sending WS notification to ${wsServerUrl} for channel ${verificationResult.channelId}`);
               const wsResponse = await fetch(wsServerUrl, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
