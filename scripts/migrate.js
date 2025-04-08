@@ -30,8 +30,6 @@ async function runMigrations() {
     
   } catch (error) {
     console.error(`❌ Migration error: ${error.message}`);
-    // Don't exit the process - let the app continue to run even if migrations fail
-    // This is useful in development when the database schema is still evolving
   }
 }
 

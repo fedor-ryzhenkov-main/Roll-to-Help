@@ -1,122 +1,112 @@
 import { PrismaClient } from '@prisma/client'
+import { addMinutes } from 'date-fns' // Ensure date-fns is imported
+
 const prisma = new PrismaClient()
 
 async function main() {
-  // Clean up existing data
+  console.log('Starting database seeding...')
+  
+  // Clean up existing data first to avoid conflicts
+  console.log('Deleting existing bids...')
   await prisma.bid.deleteMany()
+  console.log('Deleting existing games...')
   await prisma.game.deleteMany()
+  console.log('Deleting existing events...')
   await prisma.event.deleteMany()
 
-  // Set event date to a week from now
-  const eventDate = new Date()
-  eventDate.setDate(eventDate.getDate() + 7)
-  
-  // Format as YYYY-MM-DD
-  const eventDateFormatted = eventDate.toISOString().split('T')[0]
+  // Define the event date details - make it relative for easier testing
+  const eventDate = addMinutes(new Date(), 60 * 24); // Example: Event starts 1 day from now
+  // Set the specific auction end date: April 22nd, 18:00 Tbilisi (UTC+4)
+  const auctionEndDate = new Date('2024-04-22T14:00:00Z'); 
+  console.log(`Setting event end date to: ${auctionEndDate.toISOString()} (April 22, 18:00 GET)`);
 
-  // Create upcoming tabletop charity event
+  // Create the Roll to Help charity event
+  console.log('Creating the Roll to Help event...');
   const event = await prisma.event.create({
     data: {
-      name: 'Roll to Help!',
-      description: 'The prominent organisation helping Ukrainian refugees "Choose to Help" is closing, and they need our help one last time. Let\'s do this, Tbilisi!',
-      location: 'Mesto, 12 Rustaveli Ave, Tbilisi',
-      eventDate: new Date(eventDate),
-      imageUrl: 'https://images.unsplash.com/photo-1605870445919-838d190e8e1b',
+      name: 'Roll to Help',
+      description: 'Благотворительный вечер Dungeons & Dragons и других настольно-ролевых игр в поддержку фонда Choose to Help.',
+      location: 'Клуб настольных игр Mesto (Технический Университет)',
+      eventDate: eventDate, // Use the calculated date
+      endDate: auctionEndDate, // SET THE EVENT END DATE HERE
+      imageUrl: '/images/events/roll-to-help-banner.jpg', // Placeholder image URL
       isActive: true,
-      games: {
-        create: [
-          {
-            title: 'Warhammer TTRPG Adventure',
-            description: 'Embark on an epic quest in the Warhammer universe. Suitable for beginners and experienced players.',
-            gameMaster: 'John Smith',
-            imageUrl: 'https://images.unsplash.com/photo-1605870445919-838d190e8e1b',
-            totalSeats: 4,
-            startingBid: 10,
-          },
-          {
-            title: 'Dungeons & Dragons One-Shot',
-            description: 'A thrilling one-shot adventure for a party of adventurers. No experience necessary!',
-            gameMaster: 'Jane Doe',
-            imageUrl: 'https://images.unsplash.com/photo-1614682792267-a4ed94752df4',
-            totalSeats: 6,
-            startingBid: 15,
-          },
-          {
-            title: 'Call of Cthulhu Investigation',
-            description: 'Investigate eldritch mysteries in this horror-themed roleplaying game.',
-            gameMaster: 'Robert Green',
-            imageUrl: 'https://images.unsplash.com/photo-1518736114810-3f3bedfec66a',
-            totalSeats: 5,
-            startingBid: 12,
-          }
-        ]
-      }
-    }
-  })
+    },
+  });
+  console.log(`Created event with ID: ${event.id}`);
 
-  // Create some initial bids for the first game
-  const game = await prisma.game.findFirst({
-    where: { eventId: event.id }
-  })
+  // Define the games based on provided text
+  const gamesData = [
+    {
+      name: 'Раз, два, три — замри.',
+      description: 'Сказки окружают нас повсюду: они таятся в тёмной воде колодцев, шелестят в солнечных полях и крадутся по мрачным лесам. Исполинский Чугайстирь бродит по своим лесным владениям, жадные скарбники чахнут над сокровищами, а коварные бохинки по ночам окружают колыбели. Эти сказки вплетены в мироздание шёлком надежды и канатами страха, но многие о них позабыли, разучились в них верить. На границе чувств сказки всё ещё любят, ненавидят, злятся, боятся и мстят. Только вы можете их видеть. Только вы чувствуете их. Только вы сможете спасти нас.',
+      system: 'Vaessen',
+      genre: 'Детективный триллер в глубинных сёлах 18-го века',
+      imageUrl: '/games/замри-logo.png', 
+      totalSeats: 4,
+      startingPrice: 40, 
+      minBidIncrement: 10, 
+    },
+    {
+      name: 'Домашняя вечеринка!',
+      description: 'Вы почти никого здесь не знаете, а всю ночь провели, сидя в саду и разговаривая с одними и теми же людьми. Это, конечно, очень весело, но теперь вам крайне нужно пописать, прежде чем отправиться домой. Загвоздка в том, что вечеринка стала довольно бурной: если вы не уйдёте в ближайшее время, вас заставят убираться! Вы понятия не имеете, где находится туалет, а здание, по-видимому, спроектировано пьяным человеком. Удачи!',
+      system: 'Тройка!', 
+      genre: 'Безумное фентези в вечно изменяющемся городе на стыке всех миров и хлебных корочек. Быстрая генерация персонажей перед игрой, OSR.',
+      imageUrl: '/games/вечеринка-logo.jpg', 
+      totalSeats: 6, 
+      startingPrice: 40,
+      minBidIncrement: 10,
+    },
+    {
+      name: 'Де Вицце в беде!',
+      description: 'В поисках приключений или лёгкой наживы вы пустились в путь, чтобы завоевать себе славу мечом и магией. Но дела идут не так хорошо. Лучшее, что вам удалось найти, — это должность охраны у одного вельможи, чьи эксцентричные запросы становятся всё более несуразными, особенно после того, как он обрёл новую даму сердца, которую непременно хочет завоевать. Bonjour, mon ami~',
+      system: 'Dungeons & Dragons',
+      genre: 'Весёлый фэнтезийный сюжет в самой популярной игровой системе.', // Note: D&D mentioned again here, might refine genre text
+      imageUrl: '/games/девице-logo.jpg', 
+      totalSeats: 6, 
+      startingPrice: 40,
+      minBidIncrement: 10,
+    },
+    {
+      name: 'Незабудка',
+      description: '10 лет прошло. Вы —друзья, что не виделись, кажется, вечность. Однако вас объединяет общее дело: вы — тестировщики, и, собираясь вновь и вновь в играх, вы наконец добрались до виртуальной вселенной, чтобы воочию увидеть то, что было… Понять, чем стали все упущения в ваших жизнях. Новая VR-сессия — шанс поделиться прошлым, но симуляция работает не совсем точно. Мемория — некий феномен в игре, и вам необходимо узнать его природу, при возможности произвести фикс и составить отчёт. Каждое решение — шаг к правде или новой неточности этой вселенной.',
+      system: 'Monsterhearts',
+      genre: 'Психологическая фантастика о друзьях, которых разлучили годы, но объединила симуляция.',
+      imageUrl: '/games/незабудка-logo.jpg', 
+      totalSeats: 3,
+      startingPrice: 40,
+      minBidIncrement: 10,
+    },
+  ]
 
-  if (game) {
-    await prisma.bid.createMany({
-      data: [
-        {
-          telegramName: '@player1',
-          amount: 15,
-          gameId: game.id,
-        },
-        {
-          telegramName: '@player2',
-          amount: 20,
-          gameId: game.id,
-        },
-        {
-          telegramName: '@player3',
-          amount: 12,
-          gameId: game.id,
-        }
-      ]
+  // Create the games associated with the event
+  console.log(`Creating ${gamesData.length} games for event ${event.id}...`)
+  for (const game of gamesData) {
+    await prisma.game.create({
+      data: {
+        ...game,
+        eventId: event.id,
+      },
     })
-
-    // Update winning bids based on highest amounts and seat availability
-    await updateWinningBids(game.id, game.totalSeats)
   }
+  console.log('Games created successfully.')
+
+  // Remove the old bid creation and updateWinningBids logic for a clean seed
+  // if (game) { ... }
+  // async function updateWinningBids(...) { ... }
 
   console.log('Database seeded successfully!')
 }
 
-// Helper function to update winning bids
-async function updateWinningBids(gameId: number, totalSeats: number) {
-  // Get all bids for this game, ordered by amount descending
-  const bids = await prisma.bid.findMany({
-    where: { gameId },
-    orderBy: { amount: 'desc' },
-  })
-
-  // Reset all bids to non-winning
-  await prisma.bid.updateMany({
-    where: { gameId },
-    data: { isWinning: false }
-  })
-
-  // Mark the top N bids as winning based on available seats
-  const winningBids = bids.slice(0, totalSeats)
-  
-  for (const bid of winningBids) {
-    await prisma.bid.update({
-      where: { id: bid.id },
-      data: { isWinning: true }
-    })
-  }
-}
-
 main()
   .catch((e) => {
-    console.error(e)
+    console.error('Error during seeding:', e)
     process.exit(1)
   })
   .finally(async () => {
+    console.log('Disconnecting Prisma Client...')
     await prisma.$disconnect()
-  }) 
+  })
+
+// This is needed for ESM compatibility
+export {} 

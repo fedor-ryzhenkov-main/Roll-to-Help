@@ -149,4 +149,135 @@ Set up automatic backups for your PostgreSQL database in the Digital Ocean dashb
 
 ## Support
 
-For questions about Digital Ocean deployment, contact their support or refer to their documentation. 
+For questions about Digital Ocean deployment, contact their support or refer to their documentation.
+
+# Развертывание бота для аукциона Roll to Help
+
+## Подготовка к развертыванию
+
+Перед развертыванием убедитесь, что у вас есть:
+
+- Токен Telegram-бота, полученный от BotFather
+- Секретный ключ для webhook (придумайте сложную строку)
+- URL вашего приложения (например, https://auction.example.com)
+
+## Необходимые переменные окружения
+
+Для правильной работы бота необходимы следующие переменные окружения:
+
+```
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_WEBHOOK_SECRET=your_webhook_secret_here
+NEXT_PUBLIC_APP_URL=https://your-app-url.com
+```
+
+## Особенности работы бота в производственной среде
+
+1. Бот автоматически регистрирует webhook при запуске сервера
+2. Webhook обрабатывает входящие сообщения от пользователей
+3. Проверка подписи webhook обеспечивает безопасность (используется TELEGRAM_WEBHOOK_SECRET)
+
+## Тестирование после развертывания
+
+После развертывания:
+
+1. Отправьте команду `/start` вашему боту
+2. Проверьте, что бот отвечает на команды
+3. Протестируйте процесс привязки аккаунта
+4. Протестируйте уведомления победителям:
+   ```
+   npm run test:notification YOUR_TELEGRAM_ID
+   ```
+
+## Устранение неполадок
+
+Если бот не работает в производственной среде:
+
+1. Проверьте логи сервера на наличие ошибок
+2. Проверьте статус webhook:
+   ```
+   npm run bot:webhook check
+   ```
+3. Убедитесь, что URL приложения доступен из интернета
+4. Проверьте, что токен бота и секретный ключ webhook корректны
+
+## Регулярные задачи и уведомления
+
+Для отправки уведомлений победителям аукционов используется задача `processEndedAuctions`. 
+В производственной среде рекомендуется настроить регулярный запуск этой задачи с помощью cron.
+
+### Использование API-эндпоинта для проверки аукционов
+
+Для облегчения настройки регулярных проверок аукционов, в приложении предусмотрен специальный API-эндпоинт:
+
+```
+GET /api/tasks/auction-check?secret=YOUR_SECRET_TOKEN
+```
+
+Где `YOUR_SECRET_TOKEN` - значение, указанное в переменной окружения `TASKS_SECRET_TOKEN`.
+
+#### Настройка переменных окружения
+
+Добавьте следующую переменную окружения в ваше приложение:
+
+```
+TASKS_SECRET_TOKEN=your_secure_random_token_here
+```
+
+#### Настройка Cron Job на сервере
+
+Для запуска каждые 5 минут, добавьте в crontab:
+
+```
+*/5 * * * * curl -s https://your-app-url.com/api/tasks/auction-check?secret=your_secure_random_token_here > /dev/null 2>&1
+```
+
+#### Настройка в Vercel или другом облачном сервисе
+
+Если вы используете Vercel, вы можете воспользоваться встроенной функцией Cron Jobs:
+
+1. Создайте файл `vercel.json` в корне проекта:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/tasks/auction-check?secret=your_secure_random_token_here",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+```
+
+2. Убедитесь, что `TASKS_SECRET_TOKEN` добавлен в переменные окружения Vercel.
+
+#### Мониторинг задачи
+
+API-эндпоинт возвращает JSON-ответ с информацией о выполнении задачи:
+
+```json
+{
+  "success": true,
+  "processed": 3,
+  "timestamp": "2023-06-01T12:00:00.000Z"
+}
+```
+
+Где:
+- `success` - флаг успешного выполнения
+- `processed` - количество обработанных аукционов
+- `timestamp` - время выполнения задачи
+
+#### Ручной запуск задачи
+
+Вы также можете запускать задачу вручную, используя локальную команду:
+
+```
+npm run task:run
+```
+
+Или через API-эндпоинт в браузере (в режиме разработки секретный токен не требуется):
+
+```
+http://localhost:3000/api/tasks/auction-check
+``` 

@@ -1,12 +1,8 @@
 import './globals.css'
-import type { Metadata, Viewport } from 'next'
 import { Poppins } from 'next/font/google'
-import Link from 'next/link'
-import NavBar from '@/app/components/NavBar'
-import NextAuthProvider from '@/app/components/NextAuthProvider'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import {ReactNode} from 'react';
+import { TelegramProvider } from './context/TelegramContext'
+import Header from './components/layout/Header'
+import { Toaster } from 'react-hot-toast';
 
 const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
@@ -14,7 +10,7 @@ const poppins = Poppins({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
+export const metadata = {
   title: 'Игротека',
   description: 'Благотворительная игротека настольных игр',
   icons: {
@@ -23,32 +19,30 @@ export const metadata: Metadata = {
   },
 }
 
-export const viewport: Viewport = {
+export const viewport = {
   width: 'device-width',
   initialScale: 1,
 }
 
-export default async function RootLayout({ 
-  children 
-}: { 
-  children: ReactNode 
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
-
   return (
     <html lang="ru">
-      <body className={`${poppins.className} bg-amber-50 flex flex-col min-h-screen`}>
-        <NextAuthProvider session={session}>
-          <header>
-            <NavBar />
-          </header>
-          
-          <main className="flex-grow">
+      <body className={`${poppins.className} flex flex-col min-h-screen`} 
+            style={{
+              background: 'linear-gradient(to bottom, #ede9f6 0%, #eae4f4 20%, #e6dfef 40%, #ece5e0 60%, #f0ebd1 80%, #f5ecb5 100%)'
+            }}>
+        <TelegramProvider>
+          <Header />
+          <main className="flex-grow container mx-auto px-4 py-8 pt-20">
             {children}
           </main>
-          
-        </NextAuthProvider>
+          <Toaster position="bottom-center" />
+        </TelegramProvider>
       </body>
     </html>
-  )
+  );
 } 

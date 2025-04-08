@@ -2,15 +2,19 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useSession, signIn } from 'next-auth/react';
+import * as z from 'zod';
+import { useTelegram } from '@/app/context/TelegramContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Bid } from '@/app/types';
+import ErrorMessage from './ErrorMessage';
+import ErrorBoundary from './ErrorBoundary';
+import { apiClient, ApiError } from '@/app/utils/api-client';
 
 interface PlaceBidProps {
-  gameId: number;
-  startingBid: number;
+  gameId: string;
+  startingPrice: number;
   currentMinWinningBid: number;
 }
 
@@ -18,131 +22,171 @@ interface PlaceBidProps {
 const createBidSchema = (minBid: number) => z.object({
   amount: z.number()
             .positive('Сумма должна быть положительной')
-            .min(minBid, `Сумма должна быть не менее $${minBid.toFixed(2)}, чтобы выиграть`)
-            // Optional: Add a reasonable upper limit if desired
-            // .max(10000, 'Maximum bid limit reached'),
+            // Use Lari symbol ₾
+            .min(minBid, `Сумма должна быть не менее ${minBid.toFixed(2)} ₾, чтобы выиграть`)
+            // Add validation for increments if necessary, although min usually handles it
+            // .refine(val => (val - minBid) % 10 === 0, { message: 'Сумма должна быть кратна шагу в 10 ₾ сверх минимальной' })
 });
 
-export default function PlaceBid({ gameId, startingBid, currentMinWinningBid }: PlaceBidProps) {
-  const { data: session, status } = useSession();
+export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }: PlaceBidProps) {
+  const { linkedTelegramInfo, isLoading: isLoadingTelegramInfo } = useTelegram();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Determine the actual minimum bid required to potentially win
-  const minBidRequired = Math.max(startingBid, currentMinWinningBid + 0.01);
+  // Corrected logic for minimum bid required:
+  // If currentMinWinningBid is still the starting price, the minimum is the starting price.
+  // Otherwise, it's the lowest winning bid + increment.
+  const minBidRequired = currentMinWinningBid <= startingPrice 
+                          ? startingPrice 
+                          : currentMinWinningBid + 10; // Use 10 GEL increment
+  
   const bidSchema = createBidSchema(minBidRequired);
+  
   type BidFormData = z.infer<typeof bidSchema>;
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<BidFormData>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<BidFormData>({ 
     resolver: zodResolver(bidSchema),
     defaultValues: {
       amount: parseFloat(minBidRequired.toFixed(2)) // Pre-fill with minimum required
     }
   });
 
+  // Determine if user is allowed to bid
+  const canBid = !isLoadingTelegramInfo && !!linkedTelegramInfo;
+
+  const resetApiState = () => setError(null);
+
   const handlePlaceBid = async (data: BidFormData) => {
-    setIsLoading(true);
-    setError(null);
+    // Reset states
     setSuccessMessage(null);
+    setError(null);
+    resetApiState();
 
-    if (status === 'unauthenticated') {
-      // Redirect to login, then back to this game page
-      signIn(undefined, { callbackUrl: `/games/${gameId}` });
-      return; // Stop execution here
-    }
-
-    if (!session?.user.isVerified) {
-      setError('Пожалуйста, подтвердите свой аккаунт Telegram перед участием в аукционе.');
-      setIsLoading(false);
+    if (!canBid || !linkedTelegramInfo) {
+      setError('Пожалуйста, сначала свяжите ваш Telegram аккаунт.');
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      const response = await fetch('/api/bids', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameId, amount: data.amount }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Не удалось сделать ставку');
+      // Use apiClient which handles CSRF headers automatically
+      console.log("Submitting bid via apiClient...");
+      
+      const payload = {
+        gameId,
+        amount: data.amount,
+      };
+      
+      // apiClient.post returns the full ApiResponse { success, data, ... } on success
+      // Specify the expected type for the nested data
+      const responseData = await apiClient.post<{ data: { bid: Bid } }>('/api/bids', payload); 
+      
+      // Check the success flag and access the bid via responseData.data.bid
+      if (responseData.success && responseData.data?.bid) { 
+          setSuccessMessage(`Успешно! Ваша ставка ${responseData.data.bid.amount.toFixed(2)} ₾ принята!`);
+          reset();
+          router.refresh(); // Refresh data after successful bid
+      } else {
+          // Handle cases where success might be true but data is missing, or success is false (though ApiError should handle non-2xx)
+          console.error('Bid response indicates failure or unexpected data format:', responseData);
+          throw new Error(responseData.message || 'Неожиданный ответ от сервера.');
       }
 
-      // Success!
-      setSuccessMessage(`Успешно! Ваша ставка $${data.amount.toFixed(2)} принята!`);
-      reset(); // Reset form fields
-      router.refresh(); // Refresh server components (bid list)
-
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Произошла непредвиденная ошибка');
+      console.error("Bid error:", err);
+      
+      let errorMessage = 'Произошла ошибка';
+      if (err instanceof ApiError) {
+        // Use message from ApiError
+        errorMessage = err.message;
+        // Handle specific statuses
+        if (err.status === 401) {
+           errorMessage = 'Ошибка аутентификации. Попробуйте войти снова.';
+        } else if (err.status === 403) {
+           errorMessage = 'Ошибка безопасности (CSRF). Попробуйте обновить страницу.';
+        } else if (err.status === 400) {
+           // Keep the specific validation message from the API if it's a 400 Bad Request
+           errorMessage = err.message || 'Неверные данные ставки.'; 
+        } 
+      } else if (err instanceof Error) {
+        // Handle generic JS errors
+        errorMessage = err.message;
+      } 
+      
+      setError(errorMessage);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (status === 'loading') {
+  // Show loading state while session is loading
+  if (isLoadingTelegramInfo) {
     return <div className="text-center text-gray-500">Загрузка...</div>;
   }
 
-  return (
-    <div className="bg-amber-50 p-6 rounded-lg shadow-inner">
-      <h2 className="text-xl font-semibold text-purple-900 mb-4">Участвуйте в благотворительном аукционе</h2>
+  if (!linkedTelegramInfo) {
+    return (
+      <div className="text-center p-4 border border-orange-200 rounded-md bg-orange-50">
+        <p className="text-orange-700">
+          Пожалуйста, <a href="/link-telegram" className="font-semibold underline hover:text-orange-800">свяжите ваш Telegram</a>, чтобы делать ставки.
+        </p>
+      </div>
+    );
+  }
 
-      {status === 'unauthenticated' ? (
-        <button 
-          onClick={() => signIn(undefined, { callbackUrl: `/games/${gameId}` })}
-          className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-        >
-          Войдите для участия в аукционе
-        </button>
-      ) : !session?.user.isVerified ? (
-        <div className="text-center p-4 bg-orange-100 border border-orange-300 text-orange-700 rounded-md">
-          <p className="font-medium">Требуется подтверждение</p>
-          <p className="text-sm mb-3">Пожалуйста, привяжите и подтвердите свой аккаунт Telegram для участия в аукционе.</p>
-          <Link href="/link-telegram" className="text-orange-600 hover:underline text-sm font-medium">
-             Перейти к подтверждению
-          </Link>
-        </div>
-      ) : (
+  return (
+    <ErrorBoundary>
+      <div className="bg-amber-50 p-6 rounded-lg shadow-inner">
+        <h2 className="text-xl font-semibold text-purple-900 mb-4">Участвуйте в благотворительном аукционе</h2>
+
         <form onSubmit={handleSubmit(handlePlaceBid)} className="space-y-4">
           <div>
             <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-              Ваша ставка ($)
+              Ваша ставка (₾) - мин. {minBidRequired.toFixed(2)}
             </label>
             <input
               id="amount"
               type="number"
-              step="0.01" // Allow cents
-              {...register('amount', { valueAsNumber: true })} // Ensure value is treated as number
+              step="10"
+              {...register('amount', { valueAsNumber: true })}
               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'}`}
-              placeholder={`Минимум $${minBidRequired.toFixed(2)}`}
+              placeholder={`Минимум ${minBidRequired.toFixed(2)}`}
+              min={minBidRequired}
+              disabled={isSubmitting || !canBid}
             />
             {errors.amount && (
               <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
             )}
           </div>
           
+          {/* Display API errors with our error component */}
           {error && (
-            <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded-md text-sm">
-              {error}
-            </div>
+            <ErrorMessage 
+              message={error} 
+              severity="error" 
+              onDismiss={resetApiState}
+            />
           )}
+          
+          {/* Display success message */}
           {successMessage && (
-             <div className="bg-green-100 border border-green-300 text-green-700 p-3 rounded-md text-sm">
-              {successMessage}
-            </div>
+            <ErrorMessage 
+              message={successMessage} 
+              severity="info" 
+              className="bg-green-50 border-green-300 text-green-700"
+              onDismiss={() => setSuccessMessage(null)}
+            />
           )}
           
           <button
             type="submit"
-            disabled={isLoading || status !== 'authenticated' || !session?.user.isVerified}
+            disabled={isSubmitting || !canBid}
             className="w-full bg-purple-700 hover:bg-purple-800 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md flex items-center justify-center transition-colors"
           >
-            {isLoading ? (
+            {isSubmitting ? (
               <span className="flex items-center">
                 <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -155,7 +199,7 @@ export default function PlaceBid({ gameId, startingBid, currentMinWinningBid }: 
             )}
           </button>
         </form>
-      )}
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 } 

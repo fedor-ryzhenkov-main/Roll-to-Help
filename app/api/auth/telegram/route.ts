@@ -16,35 +16,31 @@ function generateVerificationCode(length = 6): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // No longer needs username from request body
-    // const data = await request.json();
-    // const { username } = data;
-
-    // Generate a verification code
     const verificationCode = generateVerificationCode();
     const codeExpiresMinutes = 10; // Code valid for 10 minutes
     const expires = addMinutes(new Date(), codeExpiresMinutes);
+    const channelId = nanoid(16); // Generate a 16-character unique ID
 
-    // Store the code in the PendingVerification table
+    // Store only code, channelId, expires
     const pending = await prisma.pendingVerification.create({
       data: {
         verificationCode: verificationCode,
         expires: expires,
+        channelId: channelId,
       },
     });
 
-    console.log(`Generated verification code: ${verificationCode}, expires: ${expires}`);
+    console.log(`Generated verification code: ${verificationCode}, channelId: ${channelId}, expires: ${expires}`);
 
-    // Return only the verification code to the client
     return NextResponse.json({
       success: true,
       verificationCode,
-      // No userId is returned here, association happens via Telegram bot
+      channelId,
     });
   } catch (error) {
     console.error('Error generating verification code:', error);
     // Handle potential unique constraint errors if code generation collides (rare)
-    if (error.code === 'P2002') { 
+    if (error instanceof Error && 'code' in error && error.code === 'P2002') { 
          return NextResponse.json({ 
              success: false, 
              error: 'Failed to generate unique code, please try again.' 

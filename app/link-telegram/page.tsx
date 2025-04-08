@@ -1,11 +1,12 @@
+'use client';
+
+import { useSearchParams } from 'next/navigation';
 import TelegramLogin from '@/app/components/auth/TelegramLogin';
 
-export const metadata = {
-  title: 'Вход через Telegram - Roll to Help',
-  description: 'Подключите свой Telegram аккаунт для участия в наших благотворительных настольных мероприятиях',
-};
-
 export default function LinkTelegramPage() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  
   return (
     <div className="min-h-screen bg-amber-50 py-12">
       <main className="container mx-auto px-4">
@@ -13,7 +14,7 @@ export default function LinkTelegramPage() {
           <h1 className="text-4xl font-bold text-center text-purple-900 mb-8">Подключение Telegram</h1>
           
           <div className="mb-8">
-            <TelegramLogin />
+            <TelegramLogin callbackUrl={callbackUrl} />
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-md">

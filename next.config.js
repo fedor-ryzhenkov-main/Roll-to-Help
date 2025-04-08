@@ -21,7 +21,6 @@ const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'prisma'],
   
   images: {
-    domains: ['images.unsplash.com'],
     unoptimized: process.env.NODE_ENV === 'development',
     remotePatterns: [
       {
@@ -31,24 +30,15 @@ const nextConfig = {
     ],
   },
   
-  // Combined experimental settings
-  experimental: {
-    // For build caching
-    turbotrace: {
-      logLevel: 'error',
-    },
-    // Enable build caching
-    outputFileTracingRoot: __dirname,
-    outputFileTracingExcludes: {
-      '*': [
-        'node_modules/@swc/core-linux-x64-gnu',
-        'node_modules/@swc/core-linux-x64-musl',
-        'node_modules/@esbuild/linux-x64',
-      ],
-    },
-    // Disable static generation for pages that would require database access
-    // during the build phase, ensuring we only access the database at runtime
-  }
+  // Moved experimental settings outside based on warnings
+  outputFileTracingRoot: __dirname, 
+  outputFileTracingExcludes: {
+    '*': [
+      'node_modules/@swc/core-linux-x64-gnu',
+      'node_modules/@swc/core-linux-x64-musl',
+      'node_modules/@esbuild/linux-x64',
+    ],
+  },
 }
 
 export default nextConfig; 

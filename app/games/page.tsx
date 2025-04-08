@@ -9,15 +9,17 @@ async function getActiveGames() {
     where: {
       event: {
         isActive: true,
-        // Optional: Ensure event date is in the future if needed
-        // eventDate: { gt: now },
+        // Removed the endDate filter to show all games from active events
+        // endDate: {
+        //   gt: now
+        // }
       },
     },
     include: {
       event: true, // Include event details if needed later
     },
     orderBy: {
-      title: 'asc', // Order games alphabetically
+      name: "asc", // <-- Change 'title' to 'name'
     },
   });
   return games;
@@ -32,7 +34,7 @@ export default async function GamesPage() {
   const games = await getActiveGames();
 
   return (
-    <div className="min-h-screen bg-amber-50 py-12">
+    <div className="min-h-screen py-12">
       <main className="container mx-auto px-4">
         <h1 className="text-4xl font-bold text-center text-purple-900 mb-12">Доступные игры</h1>
 
@@ -45,15 +47,15 @@ export default async function GamesPage() {
                 <div className="bg-white rounded-lg shadow-md overflow-hidden transform transition duration-300 hover:scale-105 hover:shadow-lg cursor-pointer h-full flex flex-col">
                   <div className="relative h-48 w-full">
                     <Image
-                      src={game.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'} // Placeholder image
-                      alt={game.title}
+                      src={game.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image'}
+                      alt={game.name}
                       fill
                       style={{ objectFit: "cover" }}
                     />
                   </div>
                   <div className="p-6 flex-grow flex flex-col justify-between">
                     <div>
-                      <h2 className="text-xl font-semibold text-purple-900 mb-2">{game.title}</h2>
+                      <h2 className="text-xl font-semibold text-purple-900 mb-2">{game.name}</h2>
                       <p className="text-gray-700 text-sm line-clamp-3">
                         {game.description || 'Описание отсутствует.'}
                       </p>
