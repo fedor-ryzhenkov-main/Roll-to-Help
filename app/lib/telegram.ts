@@ -47,7 +47,12 @@ function getBotInstance(): Telegraf | null {
         console.error('[Telegram] Error during bot stop (SIGTERM):', stopErr.message);
       }
     });
-    console.log('[Telegram] Bot instance initialized and signal handlers attached.');
+    
+    // *** Call configureBot() AFTER instance creation ***
+    configureBot(); 
+    // **************************************************
+
+    console.log('[Telegram] Bot instance initialized and configured.'); // Update log message
   }
   return botInstance;
 }
@@ -109,12 +114,16 @@ function configureBot() {
 
   // Start command
   botInstance.command('start', async (ctx) => {
+    console.log(`[Telegram Handler /start] Received /start from user ${ctx.from.id}`);
     try {
       // Update user profile if they exist
       // await updateUserFromTelegram(ctx); // Commented out: Function not found
+      console.log(`[Telegram Handler /start] Preparing welcome message for ${ctx.from.id}`);
       await ctx.reply(BotMessages.WELCOME);
-    } catch (error) {
-      logApiError('telegram-bot:start', error);
+      console.log(`[Telegram Handler /start] Welcome message sent to ${ctx.from.id}`);
+    } catch (error: any) {
+      console.error(`[Telegram Handler /start] Error processing /start for ${ctx.from.id}:`, error.message);
+      logApiError('telegram-start-command', error, { userId: ctx.from.id });
       await ctx.reply('An error occurred. Please try again later.');
     }
   });
