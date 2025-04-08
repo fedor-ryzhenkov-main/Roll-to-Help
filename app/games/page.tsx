@@ -4,25 +4,33 @@ import Image from "next/image";
 
 // Fetch active games from the database
 async function getActiveGames() {
-  const now = new Date();
-  const games = await prisma.game.findMany({
-    where: {
-      event: {
-        isActive: true,
-        // Removed the endDate filter to show all games from active events
-        // endDate: {
-        //   gt: now
-        // }
+  console.log('[getActiveGames] Fetching active games...');
+  try {
+    const now = new Date();
+    const games = await prisma.game.findMany({
+      where: {
+        event: {
+          isActive: true,
+          // Removed the endDate filter to show all games from active events
+          // endDate: {
+          //   gt: now
+          // }
+        },
       },
-    },
-    include: {
-      event: true, // Include event details if needed later
-    },
-    orderBy: {
-      name: "asc", // <-- Change 'title' to 'name'
-    },
-  });
-  return games;
+      include: {
+        event: true, // Include event details if needed later
+      },
+      orderBy: {
+        name: "asc", // <-- Change 'title' to 'name'
+      },
+    });
+    console.log(`[getActiveGames] Found ${games.length} active games.`);
+    return games;
+  } catch (error: any) {
+    console.error('[getActiveGames] Error fetching games:', error.message);
+    logApiError('get-active-games', error); // Assuming logApiError is available/importable here, adjust if not
+    return []; // Return empty array on error to prevent breaking the page
+  }
 }
 
 export const metadata = {
