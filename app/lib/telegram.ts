@@ -3,7 +3,7 @@
  * Centralized setup for the Telegram bot
  */
 
-import { Telegraf } from 'telegraf';
+import { Telegraf, Telegram } from 'telegraf';
 // import { BOT_MESSAGES } from '@/app/config/constants'; // Remove import
 import { 
   getUserByTelegramId, 
@@ -12,12 +12,66 @@ import {
 import { logApiError } from '@/app/lib/api-utils';
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
-export const bot = botToken ? new Telegraf(botToken) : null;
 
-if (!bot) {
-  console.error('Telegram bot initialization failed - TELEGRAM_BOT_TOKEN is missing');
-} else {
-  configureBot();
+let botInstance: Telegraf | null = null;
+
+/**
+ * Lazily initializes and returns the Telegraf bot instance.
+ * Ensures the bot is only instantiated when needed at runtime.
+ * @returns {Telegraf | null} The Telegraf instance or null if token is missing.
+ */
+function getBotInstance(): Telegraf | null {
+  if (!botToken) {
+    console.error('[Telegram] Error: TELEGRAM_BOT_TOKEN is not set. Bot cannot be initialized.');
+    return null;
+  }
+  if (!botInstance) {
+    console.log('[Telegram] Initializing Telegraf bot instance...');
+    botInstance = new Telegraf(botToken);
+
+    // Graceful shutdown handlers
+    process.once('SIGINT', () => {
+      console.log('[Telegram] Received SIGINT, attempting to stop bot...');
+      try {
+        botInstance?.stop('SIGINT');
+      } catch (stopErr: any) {
+        console.error('[Telegram] Error during bot stop (SIGINT):', stopErr.message);
+      }
+    });
+    process.once('SIGTERM', () => {
+      console.log('[Telegram] Received SIGTERM, attempting to stop bot...');
+      try {
+        botInstance?.stop('SIGTERM');
+      } catch (stopErr: any) {
+        console.error('[Telegram] Error during bot stop (SIGTERM):', stopErr.message);
+      }
+    });
+    console.log('[Telegram] Bot instance initialized and signal handlers attached.');
+  }
+  return botInstance;
+}
+
+// Keep the direct export for potential type usage if needed, but don't instantiate here
+// export const bot = botToken ? new Telegraf(botToken) : null; 
+
+// Cache for Telegram API instance (separate from the bot instance)
+let telegramApiInstance: Telegram | null = null;
+
+/**
+ * Lazily initializes and returns a Telegram API instance for direct calls.
+ * @returns {Telegram | null} The Telegram API instance or null if token is missing.
+ */
+function getTelegramApi(): Telegram | null {
+  if (!botToken) {
+    // Error already logged by getBotInstance if called first, but good to check
+    return null;
+  }
+  if (!telegramApiInstance) {
+    console.log('[Telegram] Initializing Telegram API instance...');
+    telegramApiInstance = new Telegram(botToken);
+    console.log('[Telegram] Telegram API instance initialized.');
+  }
+  return telegramApiInstance;
 }
 
 // --- Define Bot Messages Locally ---
@@ -42,18 +96,18 @@ const BotMessages = {
  * Configure bot commands and handlers
  */
 function configureBot() {
-  if (!bot) return;
+  if (!botInstance) return;
 
   // Error handling for bot
-  bot.catch((err, ctx) => {
-    logApiError('telegram-bot', err, {
-      updateType: ctx.updateType,
-      userId: ctx.from?.id,
-    });
+  botInstance.catch((err: any, ctx) => {
+    console.error(`[Telegram] Bot error for update ${ctx.updateType}:`, err);
+    logApiError('telegram-bot-runtime', err, { updateType: ctx.updateType });
+    // Optional: Reply to user about the error
+    // ctx.reply('Sorry, an internal error occurred.').catch(replyErr => console.error('Failed to send error reply:', replyErr));
   });
 
   // Start command
-  bot.command('start', async (ctx) => {
+  botInstance.command('start', async (ctx) => {
     try {
       // Update user profile if they exist
       // await updateUserFromTelegram(ctx); // Commented out: Function not found
@@ -65,12 +119,12 @@ function configureBot() {
   });
 
   // Help command
-  bot.command('help', async (ctx) => {
+  botInstance.command('help', async (ctx) => {
     await ctx.reply(BotMessages.HELP);
   });
 
   // Register command
-  bot.command('register', async (ctx) => {
+  botInstance.command('register', async (ctx) => {
     try {
       const telegramId = ctx.from.id.toString();
       const user = await getUserByTelegramId(telegramId);
@@ -90,7 +144,7 @@ function configureBot() {
   });
 
   // My auctions command
-  bot.command('myauctions', async (ctx) => {
+  botInstance.command('myauctions', async (ctx) => {
     try {
       const telegramId = ctx.from.id.toString();
       const user = await getUserByTelegramId(telegramId);
@@ -115,7 +169,7 @@ function configureBot() {
   });
 
   // Handle verification codes
-  bot.on('text', async (ctx) => {
+  botInstance.on('text', async (ctx) => {
     try {
       // Ignore commands
       const text = ctx.message.text.trim();
@@ -238,17 +292,17 @@ function configureBot() {
 
   // Enable graceful stop with checks
   process.once('SIGINT', () => {
-    if (bot) {
+    if (botInstance) {
       console.log('Received SIGINT, stopping bot...');
-      bot.stop('SIGINT');
+      botInstance.stop('SIGINT');
     } else {
       console.log('Received SIGINT, but bot instance not found.');
     }
   });
   process.once('SIGTERM', () => {
-    if (bot) {
+    if (botInstance) {
       console.log('Received SIGTERM, stopping bot...');
-      bot.stop('SIGTERM');
+      botInstance.stop('SIGTERM');
     } else {
       console.log('Received SIGTERM, but bot instance not found.');
     }
@@ -259,7 +313,7 @@ function configureBot() {
  * Setup webhook for the bot
  */
 export async function setupWebhook(domain: string) {
-  if (!bot) return { success: false, error: 'Bot not initialized' };
+  if (!botInstance) return { success: false, error: 'Bot not initialized' };
 
   const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -271,7 +325,7 @@ export async function setupWebhook(domain: string) {
 
     const webhookUrl = `${domain}/api/telegram-webhook`;
     
-    await bot.telegram.setWebhook(webhookUrl, {
+    await botInstance.telegram.setWebhook(webhookUrl, {
       drop_pending_updates: true,
       secret_token: webhookSecret, 
     });
@@ -296,6 +350,7 @@ export async function sendTelegramMessage(
   message: string, 
   options?: { parse_mode?: 'Markdown' | 'HTML' }
 ): Promise<boolean> {
+  const bot = getBotInstance();
   if (!bot) {
     console.error('Cannot send Telegram message: Bot not initialized');
     return false;
@@ -309,4 +364,7 @@ export async function sendTelegramMessage(
     logApiError('telegram-send-message', error, { telegramId });
     return false;
   }
-} 
+}
+
+// Export necessary functions
+export { getBotInstance, getTelegramApi }; 
