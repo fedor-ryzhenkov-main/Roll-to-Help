@@ -3,18 +3,33 @@
  * Centralized setup for the Telegram bot
  */
 
-import { Telegraf, Telegram } from 'telegraf';
+import { Telegraf, Telegram, Context } from 'telegraf';
 // import { BOT_MESSAGES } from '@/app/config/constants'; // Remove import
 import { 
   getUserByTelegramId, 
   linkTelegramToVerificationCode
 } from '@/app/services/telegramService';
 import { logApiError } from '@/app/lib/api-utils';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual } from 'crypto'; // Ensure imported
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
 let botInstance: Telegraf | null = null;
+let telegramApi: Telegram | null = null; // Define telegramApi if needed
+
+// --- Define Bot Messages --- 
+// Moved to top level for potential use in different handlers if needed
+const BotMessages = {
+  UNKNOWN_COMMAND: 'Неизвестная команда или формат сообщения. Используйте /help.',
+  VERIFICATION_SUCCESS: '✅ Верификация прошла успешно! Можете вернуться на сайт.',
+  VERIFICATION_INVALID: '❌ Неверный код верификации.',
+  VERIFICATION_ALREADY: '❌ Этот код уже был использован или ваш аккаунт уже верифицирован.',
+  VERIFICATION_EXPIRED: '❌ Этот код верификации истёк. Пожалуйста, сгенерируйте новый код на сайте.',
+  VERIFICATION_NO_CHANNEL: '❌ Ошибка верификации (отсутствует канал). Попробуйте снова или обратитесь в поддержку.',
+  GENERIC_ERROR: 'Произошла ошибка. Пожалуйста, попробуйте еще раз.',
+  // Add other messages as needed
+};
+// --- End Bot Messages ---
 
 /**
  * Lazily initializes and returns the Telegraf bot instance.
@@ -29,6 +44,7 @@ function getBotInstance(): Telegraf | null {
   if (!botInstance) {
     console.log('[Telegram] Initializing Telegraf bot instance...');
     botInstance = new Telegraf(botToken);
+    telegramApi = botInstance.telegram; // Initialize telegramApi if needed
 
     // Graceful shutdown handlers
     process.once('SIGINT', () => {
@@ -60,308 +76,110 @@ function getBotInstance(): Telegraf | null {
 // Keep the direct export for potential type usage if needed, but don't instantiate here
 // export const bot = botToken ? new Telegraf(botToken) : null; 
 
-// Cache for Telegram API instance (separate from the bot instance)
-let telegramApiInstance: Telegram | null = null;
-
-/**
- * Lazily initializes and returns a Telegram API instance for direct calls.
- * @returns {Telegram | null} The Telegram API instance or null if token is missing.
- */
-function getTelegramApi(): Telegram | null {
-  if (!botToken) {
-    // Error already logged by getBotInstance if called first, but good to check
-    return null;
-  }
-  if (!telegramApiInstance) {
-    console.log('[Telegram] Initializing Telegram API instance...');
-    telegramApiInstance = new Telegram(botToken);
-    console.log('[Telegram] Telegram API instance initialized.');
-  }
-  return telegramApiInstance;
-}
-
-// --- Define Bot Messages Locally ---
-const BotMessages = {
-  WELCOME: 'Добро пожаловать в бот Roll to Help! Используйте /help для просмотра доступных команд.',
-  HELP: 'Доступные команды: /start, /help, /register, /myauctions. Отправьте код верификации для привязки аккаунта.',
-  ALREADY_REGISTERED: 'Ваш аккаунт Telegram уже привязан.',
-  REGISTER_INSTRUCTIONS: (appUrl: string) => 
-    `Чтобы привязать аккаунт:\n1. Посетите ${appUrl}\n2. Нажмите Войти / Привязать аккаунт\n3. Отправьте код сюда\n4. Дождитесь подтверждения.`,
-  VERIFICATION_SUCCESS: '✅ Успех! Ваш аккаунт Telegram привязан. Пожалуйста, вернитесь на сайт - вы должны автоматически войти в систему.',
-  VERIFICATION_INVALID: '❌ Неверный код верификации. Пожалуйста, попробуйте снова или сгенерируйте новый код на сайте.',
-  VERIFICATION_EXPIRED: '❌ Этот код верификации истёк. Пожалуйста, сгенерируйте новый код на сайте.',
-  VERIFICATION_ALREADY: '❌ Этот код уже был использован или ваш аккаунт уже верифицирован.',
-  UNKNOWN_COMMAND: 'Неизвестная команда или формат сообщения. Используйте /help для просмотра доступных команд.',
-  NO_ACTIVE_BIDS: 'У вас сейчас нет активных ставок.',
-  WINNING_BIDS_NOTIFICATION: (games: string[]): string => 
-    `🎉 Поздравляем! Вы выиграли аукцион на:\n\n${games.map(g => `- ${g}`).join('\n')}\n\nПожалуйста, свяжитесь с организаторами для получения информации об оплате.`
-};
-// --- End Bot Messages Definition ---
-
 /**
  * Configure bot commands and handlers
  */
 function configureBot() {
-  if (!botInstance) return;
+  if (!botInstance) {
+    console.error("[configureBot] Bot instance not available!");
+    return;
+  } 
 
-  // Error handling for bot
-  botInstance.catch((err: any, ctx) => {
-    console.error(`[Telegram] Bot error for update ${ctx.updateType}:`, err);
-    logApiError('telegram-bot-runtime', err, { updateType: ctx.updateType });
-    // Optional: Reply to user about the error
-    // ctx.reply('Sorry, an internal error occurred.').catch(replyErr => console.error('Failed to send error reply:', replyErr));
-  });
+  botInstance.start((ctx) => ctx.reply('Добро пожаловать! Отправьте 6-значный код с сайта для верификации.'));
 
-  // Start command
-  botInstance.command('start', async (ctx) => {
-    console.log(`[Telegram Handler /start] Received /start from user ${ctx.from.id}`);
-    try {
-      // Update user profile if they exist
-      // await updateUserFromTelegram(ctx); // Commented out: Function not found
-      console.log(`[Telegram Handler /start] Preparing welcome message for ${ctx.from.id}`);
-      await ctx.reply(BotMessages.WELCOME);
-      console.log(`[Telegram Handler /start] Welcome message sent to ${ctx.from.id}`);
-    } catch (error: any) {
-      console.error(`[Telegram Handler /start] Error processing /start for ${ctx.from.id}:`, error.message);
-      logApiError('telegram-start-command', error, { userId: ctx.from.id });
-      await ctx.reply('An error occurred. Please try again later.');
-    }
-  });
-
-  // Help command
-  botInstance.command('help', async (ctx) => {
-    await ctx.reply(BotMessages.HELP);
-  });
-
-  // Register command
-  botInstance.command('register', async (ctx) => {
-    try {
-      const telegramId = ctx.from.id.toString();
-      const user = await getUserByTelegramId(telegramId);
-
-      if (user) {
-        // User is already registered
-        await ctx.reply(BotMessages.ALREADY_REGISTERED);
-      } else {
-        // User needs to register
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com';
-        await ctx.reply(BotMessages.REGISTER_INSTRUCTIONS(appUrl));
-      }
-    } catch (error) {
-      logApiError('telegram-bot:register', error);
-      await ctx.reply('An error occurred. Please try again later.');
-    }
-  });
-
-  // My auctions command
-  botInstance.command('myauctions', async (ctx) => {
-    try {
-      const telegramId = ctx.from.id.toString();
-      const user = await getUserByTelegramId(telegramId);
-
-      if (!user) {
-        // User is not registered
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app-url.com';
-        await ctx.reply(BotMessages.REGISTER_INSTRUCTIONS(appUrl));
-        return;
-      }
-
-      // Get user's bids (This logic might be broken/obsolete if getUserBids/formatUserBidsMessage removed)
-      // const bids = await getUserBids(user.id); 
-      // const message = formatUserBidsMessage(bids); // <-- formatUserBidsMessage removed
-      // await ctx.reply(message);
-      await ctx.reply('The /myauctions command is currently under maintenance.'); // Placeholder reply
-
-    } catch (error) {
-      logApiError('telegram-bot:myauctions', error);
-      await ctx.reply('An error occurred while retrieving your auctions. Please try again later.');
-    }
-  });
-
-  // Handle verification codes
   botInstance.on('text', async (ctx) => {
     try {
-      // Ignore commands
-      const text = ctx.message.text.trim();
-      if (text.startsWith('/')) return;
+      const messageText = ctx.message.text.trim();
+      const telegramId = ctx.from.id.toString();
+      const telegramContext = { 
+        first_name: ctx.from.first_name,
+        username: ctx.from.username,
+        last_name: ctx.from.last_name
+      };
 
-      // Try to handle as verification code
-      const verificationCodeRegex = /^[A-Z0-9]{6}$/;
-      
-      if (verificationCodeRegex.test(text)) {
-        const telegramId = ctx.from.id.toString();
-        // Pass context to service function
-        const verificationResult = await linkTelegramToVerificationCode(text, telegramId, ctx.from);
+      if (/^[A-Z0-9]{6}$/.test(messageText)) {
+        console.log(`[Telegram Handler] Received potential verification code: ${messageText} from user: ${telegramId}`);
         
-        // Select reply message based on verification result
+        const verificationResult = await linkTelegramToVerificationCode(
+          messageText,        
+          telegramId,         
+          telegramContext     
+        );
+
         let replyMessage: string;
         if (verificationResult.success) {
           replyMessage = BotMessages.VERIFICATION_SUCCESS;
         } else {
           switch (verificationResult.reason) {
-            case 'invalid':
-              replyMessage = BotMessages.VERIFICATION_INVALID;
-              break;
-            case 'already_verified':
-              replyMessage = BotMessages.VERIFICATION_ALREADY;
-              break;
-            case 'expired':
-              replyMessage = BotMessages.VERIFICATION_EXPIRED;
-              break;
-            case 'no_channel':
-            case 'db_error':
-            case 'internal_error':
-            default:
-              replyMessage = 'An internal error occurred during verification. Please try again later or contact support.';
-              // Log the reason if it's unexpected
-              if (verificationResult.reason !== 'no_channel' && verificationResult.reason !== 'db_error' && verificationResult.reason !== 'internal_error') {
-                 logApiError('telegram-text-handler', new Error('Unhandled verification failure reason'), { reason: verificationResult.reason });
-              }
+            case 'invalid': replyMessage = BotMessages.VERIFICATION_INVALID; break;
+            case 'already_verified': replyMessage = BotMessages.VERIFICATION_ALREADY; break;
+            case 'expired': replyMessage = BotMessages.VERIFICATION_EXPIRED; break;
+            case 'no_channel': replyMessage = BotMessages.VERIFICATION_NO_CHANNEL; break;
+            default: 
+              replyMessage = BotMessages.GENERIC_ERROR;
+              logApiError('telegram-verification-failure', new Error(`Verification failed with reason: ${verificationResult.reason}`), { telegramId: telegramId, code: messageText, reason: verificationResult.reason });
               break;
           }
         }
+        await ctx.reply(replyMessage); 
 
-        // Reply to user in Telegram
-        await ctx.reply(replyMessage);
-
-        // --- Trigger WS Notification on Success --- 
+        // --- Trigger WS Notification (Only on SUCCESS) --- 
         if (verificationResult.success && verificationResult.channelId && verificationResult.sessionId && verificationResult.user) {
           console.log(`[Telegram Handler] Verification success. Triggering WS for Channel: ${verificationResult.channelId}`);
           
-          // Construct the WS message user object using standardized names from verificationResult
-          const wsMessage = {
-              type: 'sessionCreated',
-              user: { 
-                  id: verificationResult.user.id,
-                  telegramFirstName: verificationResult.user.telegramFirstName,
-                  telegramUsername: verificationResult.user.telegramUsername,
-              },
-              sessionId: verificationResult.sessionId
-          };
-          
-          // Use environment variable for internal WS server URL
-          const wsServerUrl = process.env.INTERNAL_WEBSOCKET_URL; 
-          if (!wsServerUrl) {
-             console.error('[Telegram Handler] INTERNAL_WEBSOCKET_URL environment variable is not set! Cannot notify browser.');
-             // Optional: Reply to user that verification succeeded but login might require manual refresh
-             // await ctx.reply('Верификация успешна, но автоматический вход мог не сработать. Пожалуйста, обновите страницу на сайте.');
-             return; // Stop processing if URL is missing
-          }
-
+          const wsMessage = { type: 'sessionCreated', user: { id: verificationResult.user.id, telegramFirstName: verificationResult.user.telegramFirstName, telegramUsername: verificationResult.user.telegramUsername, }, sessionId: verificationResult.sessionId };
           try {
-              console.log(`[Telegram Handler] Sending WS notification to ${wsServerUrl} for channel ${verificationResult.channelId}`);
-              const wsResponse = await fetch(wsServerUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ 
-                      channelId: verificationResult.channelId, 
-                      message: wsMessage 
-                  }),
-              });
-              if (!wsResponse.ok) {
-                  console.error(`[Telegram Handler] Failed to send WebSocket message via ${wsServerUrl}. Status: ${wsResponse.status}`);
-                  // Log details for debugging
-                  logApiError('telegram-ws-notification', new Error(`WS notification failed with status ${wsResponse.status}`), {
-                       channelId: verificationResult.channelId,
-                       sessionId: verificationResult.sessionId,
-                       userId: verificationResult.user.id
-                  });
-              } else {
-                  console.log(`[Telegram Handler] Successfully triggered WebSocket message for channel ${verificationResult.channelId}`);
+            if (typeof global.sendWsMessage === 'function') {
+              console.log(`[Telegram Handler] Calling global.sendWsMessage for channel ${verificationResult.channelId}`);
+              const success = global.sendWsMessage(verificationResult.channelId, wsMessage);
+              if (!success) {
+                  console.error(`[Telegram Handler] global.sendWsMessage function returned false for channel ${verificationResult.channelId}`);
+                  logApiError('telegram-ws-notification-global', new Error(`WS notification via global.sendWsMessage failed`), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user.id });
               }
-          } catch (fetchError) {
-              console.error(`[Telegram Handler] Error calling WebSocket server at ${wsServerUrl}:`, fetchError);
-              logApiError('telegram-ws-notification-fetch', fetchError, { 
-                  channelId: verificationResult.channelId,
-                  wsUrl: wsServerUrl 
-              });
-              // Consider alternative notification or retry logic here
+            } else {
+                 console.error('[Telegram Handler] CRITICAL: global.sendWsMessage function not found!');
+                 logApiError('telegram-ws-notification-global-missing', new Error(`global.sendWsMessage not defined`), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user.id });
+            }
+          } catch (wsError: any) {
+              console.error(`[Telegram Handler] Error calling global.sendWsMessage:`, wsError);
+              logApiError('telegram-ws-notification-global-error', wsError, { channelId: verificationResult.channelId });
           }
-        } else {
-          // Log if verification succeeded but crucial data for WS is missing
-          if (verificationResult.success) {
+        } else if (verificationResult.success) {
              console.warn(`[Telegram Handler] Verification successful but missing data for WS notification. Result:`, verificationResult);
-             // Pass relevant parts of the result as context
-             logApiError('telegram-ws-missing-data', 
-                         new Error('Missing data after successful verification'), 
-                         { 
-                           channelId: verificationResult.channelId,
-                           sessionId: verificationResult.sessionId,
-                           userId: verificationResult.user?.id, // Use optional chaining for user
-                           hasUser: !!verificationResult.user 
-                         }
-             );
-          }
+             logApiError('telegram-ws-missing-data', new Error('Missing data after successful verification'), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user?.id, hasUser: !!verificationResult.user });
         }
-        // --- End WS Notification --- 
+        // --- End WS Notification Block ---
 
-        return; // Handled
+        return; 
       }
       
-      // Not a verification code
       await ctx.reply(BotMessages.UNKNOWN_COMMAND);
     } catch (error) {
       logApiError('telegram-bot:text', error);
-      await ctx.reply('An error occurred. Please try again later.');
+      await ctx.reply(BotMessages.GENERIC_ERROR);
     }
   });
 
-  // Enable graceful stop with checks
-  process.once('SIGINT', () => {
-    if (botInstance) {
-      console.log('Received SIGINT, stopping bot...');
-      botInstance.stop('SIGINT');
-    } else {
-      console.log('Received SIGINT, but bot instance not found.');
-    }
-  });
-  process.once('SIGTERM', () => {
-    if (botInstance) {
-      console.log('Received SIGTERM, stopping bot...');
-      botInstance.stop('SIGTERM');
-    } else {
-      console.log('Received SIGTERM, but bot instance not found.');
-    }
-  });
+  // Graceful stop handlers (if not handled elsewhere)
+  process.once('SIGINT', () => { console.log('[Telegram] Received SIGINT, stopping bot...'); botInstance?.stop('SIGINT'); });
+  process.once('SIGTERM', () => { console.log('[Telegram] Received SIGTERM, stopping bot...'); botInstance?.stop('SIGTERM'); });
 }
 
-/**
- * Setup webhook for the bot
- */
-export async function setupWebhook(domain: string) {
-  if (!botInstance) return { success: false, error: 'Bot not initialized' };
-
-  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    console.error('CRITICAL: TELEGRAM_WEBHOOK_SECRET environment variable is not set. Webhook setup cannot proceed securely.');
-    return { success: false, error: 'TELEGRAM_WEBHOOK_SECRET is not configured.' };
+// Lazy initialization for Telegram API object
+function getTelegramApi(): Telegram | null {
+  if (!telegramApi) {
+    getBotInstance(); // Ensure bot is initialized, which initializes telegramApi
   }
-
-  try {
-
-    const webhookUrl = `${domain}/api/telegram-webhook`;
-    
-    await botInstance.telegram.setWebhook(webhookUrl, {
-      drop_pending_updates: true,
-      secret_token: webhookSecret, 
-    });
-    
-    console.log(`Telegram webhook successfully set to ${webhookUrl}`);
-    return { success: true };
-  } catch (error) {
-    logApiError('telegram-webhook-setup', error);
-    return { success: false, error: String(error) };
+  if (!telegramApi) {
+      console.error('[Telegram] Error: Telegram API could not be initialized.');
   }
+  return telegramApi;
 }
 
 /**
  * Send a message to a user via Telegram
- * @param telegramId The Telegram ID of the recipient
- * @param message The message to send
- * @param options Optional message options (parse_mode, etc.)
- * @returns Promise that resolves when the message is sent
  */
-export async function sendTelegramMessage(
+async function sendTelegramMessage(
   telegramId: string, 
   message: string, 
   options?: { parse_mode?: 'Markdown' | 'HTML' }
@@ -384,29 +202,23 @@ export async function sendTelegramMessage(
 
 /**
  * Handles incoming webhook updates.
- * @param requestBody The parsed JSON body from the incoming webhook request.
- * @param secretTokenHeader The value of the X-Telegram-Bot-Api-Secret-Token header, if present.
- * @returns {Promise<boolean>} True if the update was handled successfully (or ignored due to bad secret), false otherwise.
  */
-async function handleWebhookUpdateDefinition(requestBody: any, secretTokenHeader?: string): Promise<boolean> {
-   const bot = getBotInstance(); // Get the bot instance lazily
+async function handleWebhookUpdate(requestBody: any, secretTokenHeader?: string): Promise<boolean> {
+   const bot = getBotInstance();
     if (!bot) {
         console.error('[Telegram Handler] Cannot handle update: Bot instance not available.');
         return false;
     }
     
-    // Verify secret token if it's configured and provided
     const configuredSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
     if (configuredSecret) { 
         if (!secretTokenHeader) {
-             console.warn('[Telegram Handler] Missing X-Telegram-Bot-Api-Secret-Token header, but secret is configured. Ignoring update.');
+             console.warn('[Telegram Handler] Missing X-Telegram-Bot-Api-Secret-Token header. Ignoring update.');
              return false;
         }
-        // Use timingSafeEqual for security
         try {
             const secretBuffer = Buffer.from(configuredSecret);
             const headerBuffer = Buffer.from(secretTokenHeader);
-            // Check length first for efficiency and to prevent timing attacks on unequal lengths
             if (secretBuffer.length !== headerBuffer.length || !timingSafeEqual(secretBuffer, headerBuffer)) {
                  console.warn('[Telegram Handler] Invalid X-Telegram-Bot-Api-Secret-Token received. Ignoring update.');
                  return false;
@@ -416,11 +228,9 @@ async function handleWebhookUpdateDefinition(requestBody: any, secretTokenHeader
             return false;
         }
     }
-    // If no secret is configured, we proceed without checking the header.
 
     try {
         console.log('[Telegram Handler] Handling webhook update...');
-        // Telegraf's handleUpdate processes the update using the bot's middleware (commands, etc.)
         await bot.handleUpdate(requestBody);
         console.log('[Telegram Handler] Webhook update processed by bot.');
         return true;
@@ -431,8 +241,10 @@ async function handleWebhookUpdateDefinition(requestBody: any, secretTokenHeader
     }
 }
 
-// Assign the single definition to the exported name
-const handleWebhookUpdate = handleWebhookUpdateDefinition;
-
-// Export necessary functions (ensure only listed once)
-export { getBotInstance, getTelegramApi, handleWebhookUpdate }; 
+// Final export statement - list each export only once
+export { 
+  getBotInstance, 
+  getTelegramApi, 
+  handleWebhookUpdate, 
+  sendTelegramMessage 
+};
