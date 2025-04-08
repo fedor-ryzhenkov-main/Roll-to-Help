@@ -9,6 +9,7 @@
 
 import 'dotenv/config';
 import { Telegraf } from 'telegraf';
+import { URL } from 'url'; // Import the URL class
 
 // Validate environment variables
 if (!process.env.TELEGRAM_BOT_TOKEN) {
@@ -21,8 +22,19 @@ if (!process.env.NEXT_PUBLIC_APP_URL) {
   process.exit(1);
 }
 
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/telegram-webhook`;
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
+
+// Construct the webhook URL robustly
+let webhookUrl: string;
+try {
+  // Ensure NEXT_PUBLIC_APP_URL is treated as a base URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL!;
+  // Use URL constructor to correctly join the path
+  webhookUrl = new URL('/api/telegram-webhook', baseUrl).toString();
+} catch (error) {
+  console.error('❌ Invalid NEXT_PUBLIC_APP_URL environment variable:', process.env.NEXT_PUBLIC_APP_URL);
+  process.exit(1);
+}
 
 async function checkWebhook() {
   try {
