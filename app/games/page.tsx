@@ -80,4 +80,5 @@ export default async function GamesPage() {
   );
 }
 
-export const revalidate = 3600; 
+// Remove ISR revalidation to force SSR
+// export const revalidate = 3600; 
