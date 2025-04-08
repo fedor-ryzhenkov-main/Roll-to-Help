@@ -56,7 +56,7 @@ export default function Header() {
             Roll to Help
           </Link>
           <div className="flex items-center space-x-4">
-            <Link href="/games" className="font-medium hover:text-purple-700 transition-colors px-4 py-2 rounded-md flex items-center">
+            <Link href="/games" prefetch={false} className="font-medium hover:text-purple-700 transition-colors px-4 py-2 rounded-md flex items-center">
               Игры
             </Link>
           </div>
