@@ -211,8 +211,8 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       )}
       
       {/* Link to Telegram bot - replace with your bot username */}
-      <a href="https://t.me/rolltohelp_bot" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
-        Открыть @rolltohelp_bot в Telegram
+      <a href="https://t.me/roll_to_help_bot" target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+        Открыть @roll_to_help_bot в Telegram
       </a>
     </div>
   );
