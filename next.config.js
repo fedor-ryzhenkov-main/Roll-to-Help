@@ -6,18 +6,9 @@ const __dirname = dirname(__filename);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Optimize asset loading
+
   poweredByHeader: false,
-  
-  // Disable ESLint and TypeScript checking during build for production deployment
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  
-  // External packages that should be processed by the server
+
   serverExternalPackages: ['@prisma/client', 'prisma'],
   
   images: {
@@ -30,7 +21,6 @@ const nextConfig = {
     ],
   },
   
-  // Moved experimental settings outside based on warnings
   outputFileTracingRoot: __dirname, 
   outputFileTracingExcludes: {
     '*': [

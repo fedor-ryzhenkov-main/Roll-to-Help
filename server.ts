@@ -2,7 +2,6 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
-import { registerWebSocketClient, unregisterWebSocketClient, sendWebSocketMessage } from './app/lib/websocket'; // We will adapt this
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost'; // Standard for custom server
@@ -130,7 +129,7 @@ app.prepare().then(() => {
       const reasonString = reason.toString('utf-8');
       console.log(`[ws:local] Client disconnected. ChannelId: ${channelId}, Code: ${code}, Reason: ${reasonString}, Remote: ${remoteAddress}`);
       if (ws.channelId) {
-        unregisterLocalClient(ws.channelId); // Use local unregister
+        unregisterLocalClient(ws.channelId); 
       }
     });
 
@@ -138,7 +137,7 @@ app.prepare().then(() => {
       const channelId = ws.channelId || 'UNKNOWN';
       console.error(`[ws:local] WebSocket error for client. ChannelId: ${channelId}, Error: ${error.message}, Remote: ${remoteAddress}`, error);
       if (ws.channelId) {
-        unregisterLocalClient(ws.channelId); // Use local unregister
+        unregisterLocalClient(ws.channelId); 
       }
       ws.terminate();
     });
@@ -159,7 +158,7 @@ app.prepare().then(() => {
       console.log('[Custom Server] WebSocketServer closed.');
       server.close(() => {
         console.log('[Custom Server] HTTP server closed.');
-        app.close().then(() => { // Close the Next.js app
+        app.close().then(() => { 
           console.log('[Custom Server] Next.js app closed.');
           process.exit(0);
         }).catch((closeErr) => {
@@ -172,7 +171,7 @@ app.prepare().then(() => {
     setTimeout(() => {
       console.error('[Custom Server] Could not close connections in time, forcefully shutting down');
       process.exit(1);
-    }, 15000); // Slightly longer timeout
+    }, 15000); 
   };
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));

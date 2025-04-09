@@ -1,5 +1,9 @@
-import { processEndedAuctions } from '../app/tasks/notifyWinners.ts'; // Adjust path
+import { processEndedAuctions } from '../app/tasks/notifyWinners'; 
 
+/**
+ * Main function to run scheduled tasks
+ * Executes all registered tasks and handles errors
+ */
 async function main() {
   console.log('Running scheduled tasks...');
   try {
@@ -10,8 +14,6 @@ async function main() {
     console.error('Error running scheduled tasks:', error);
     process.exit(1);
   } finally {
-    // Optional: Disconnect Prisma if the task uses it and doesn't disconnect itself
-    // await prisma.$disconnect(); 
     console.log('Finished task runner.');
   }
 }
