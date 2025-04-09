@@ -12,7 +12,7 @@ interface TelegramLoginProps {
   callbackUrl?: string;
 }
 
-// Interface for verification status response
+
 interface VerificationStatusResponse {
   success: boolean;
   verified?: boolean;
@@ -32,7 +32,6 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('callbackUrl') || callbackUrl || '/';
 
-  // Handle sign-in with NextAuth token
   const handleSignIn = useCallback(async (nextAuthToken: string) => {
     setIsSigningIn(true);
     setError(null);
@@ -75,7 +74,6 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
     }
   }, [router, returnUrl]);
 
-  // Clean up polling interval on unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
@@ -84,15 +82,12 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
     };
   }, []);
 
-  // Set up polling when verification code is available and status is pending
   useEffect(() => {
     if (verificationCode && verificationStatus === 'pending' && !isSigningIn) {
-      // Clear any existing interval
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
       }
 
-      // Start polling for verification status
       pollingIntervalRef.current = setInterval(async () => {
         try {
           console.log(`[Polling] Checking verification status for code: ${verificationCode}`);
@@ -111,19 +106,17 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
             return;
           }
 
-          // If verified, proceed with sign-in
           if (data.verified && data.nextAuthToken) {
             console.log('[Polling] Verification successful, proceeding with sign-in');
             clearInterval(pollingIntervalRef.current!);
             
-            // Sign in with the NextAuth token
             setIsSigningIn(true);
             handleSignIn(data.nextAuthToken);
           }
         } catch (err) {
           console.error('[Polling] Error fetching verification status:', err);
         }
-      }, 2000); // Poll every 2 seconds
+      }, 2000);
     }
 
     return () => {
