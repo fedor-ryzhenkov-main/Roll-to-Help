@@ -38,8 +38,11 @@ export const getPusherClient = (): PusherClient => {
     pusherClientInstance.connection.bind('disconnected', () => {
       console.log('[Pusher Client] Disconnected');
     });
-    pusherClientInstance.connection.bind('error', (err: any) => {
-      console.error('[Pusher Client] Connection Error:', err?.error?.data?.message || err);
+    pusherClientInstance.connection.bind('error', (err: { error?: { data?: { message?: string; code?: number }; type?: string } }) => {
+      // Attempt to log a more specific error message if available
+      const errorMessage = err?.error?.data?.message || 'Unknown Pusher Client Error';
+      const errorCode = err?.error?.data?.code;
+      console.error(`[Pusher Client] Connection Error: ${errorMessage}${errorCode ? ` (Code: ${errorCode})` : ''}`, err);
     });
 
   } else if (!pusherKey || !pusherCluster) {

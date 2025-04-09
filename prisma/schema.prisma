@@ -23,10 +23,12 @@ model User {
 
   // Relationships
   bids              Bid[]     // User can place multiple bids
-  sessions          Session[] // User can have multiple sessions
+  // sessions          Session[] // REMOVED: User can have multiple sessions (now handled by next-auth)
 }
 
 // Session model for storing server-side sessions
+// REMOVED - next-auth handles sessions now (using JWT in our case)
+/*
 model Session {
   id        String   @id @default(cuid()) // Primary key for the session record
   sessionId String   @unique // The secure, random ID stored in the cookie
@@ -40,7 +42,10 @@ model Session {
   @@index([userId])    // Index for efficiently finding user's sessions
   @@index([expiresAt]) // Index for cleaning up expired sessions
 }
+*/
 
+// REMOVED - Not used by next-auth default JWT strategy
+/*
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -48,21 +53,18 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+*/
 
 model PendingVerification {
   id                String    @id @default(cuid())
-  verificationCode  String    @unique // The 6-char code shown to user
-  expires           DateTime  // When the code expires
-  channelId         String?   @unique // Unique ID for WebSocket communication channel
+  verificationCode  String    @unique // The 6-char code shown to user (sent to Telegram bot)
+  expires           DateTime  // When the code/token expires
+  channelId         String?   @unique // Unique ID for Pusher communication channel
   isVerified        Boolean   @default(false) // Has the code been verified via Telegram?
   telegramId        String?   // Which Telegram user verified it?
   verifiedUserId    String?   // Which internal User ID it was linked to
-  verificationToken String?   // REMOVED - Was used for old flow, maybe keep null for now
+  verificationToken String?   @unique // ADDED: Temporary token for next-auth credentials sign-in
   createdAt         DateTime  @default(now())
-
-  // No direct relation to User needed here anymore
-  // verifiedUser User? @relation(fields: [verifiedUserId], references: [id])
-  // @@index([verifiedUserId])
 }
 
 model Event {

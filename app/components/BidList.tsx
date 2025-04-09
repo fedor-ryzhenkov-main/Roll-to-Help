@@ -1,6 +1,7 @@
 'use client';
 
-import { useTelegram } from '@/app/context/TelegramContext';
+// REMOVED: import { useTelegram } from '@/app/context/TelegramContext';
+import { useSession } from 'next-auth/react'; // Import useSession
 import { formatBidderCreatureName } from '@/app/utils/creatureNames';
 import { useEffect } from 'react';
 
@@ -24,20 +25,23 @@ interface BidListProps {
  */
 export default function BidList({ bids, totalSeats }: BidListProps) {
   console.log('BidList Component Rendered');
-  const { linkedTelegramInfo, isLoading: isTelegramLoading } = useTelegram();
-  const currentUserId = linkedTelegramInfo?.id;
+  // Use useSession to get authentication status and user data
+  const { data: session, status } = useSession();
+  const isLoadingSession = status === 'loading';
+  // @ts-expect-error - we have added sub field to session.user in our NextAuth config
+  const currentUserId = session?.user?.sub; // Get user ID from session
 
   // Determine the top bids based on the totalSeats
   const topBids = bids.slice(0, totalSeats);
 
-  // Log Telegram context status and current user ID for debugging
+  // Log session status and current user ID for debugging
   useEffect(() => {
-    console.log('BidList useEffect - Telegram context loading:', isTelegramLoading);
-    console.log('BidList useEffect - Current User ID from context:', currentUserId);
-  }, [isTelegramLoading, currentUserId]);
+    console.log('BidList useEffect - Session status:', status);
+    console.log('BidList useEffect - Current User ID from session:', currentUserId);
+  }, [status, currentUserId]);
 
-  if (isTelegramLoading) {
-    console.log('BidList: Telegram Context Loading...');
+  if (isLoadingSession) {
+    console.log('BidList: Session Loading...');
     return <p>Загрузка данных пользователя...</p>;
   }
 
@@ -48,28 +52,29 @@ export default function BidList({ bids, totalSeats }: BidListProps) {
   console.log(`BidList: Rendering ${topBids.length} bids. Current User: ${currentUserId}`);
 
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-3">
       {topBids.map((bid, index) => {
-        // Determine if the current bid belongs to the logged-in user
-        const isYourBid = !!currentUserId && bid.userId === currentUserId;
-        
-        // Log comparison result for debugging
-        console.log(`BidList Map - Bid ${bid.id}: bidUserId=${bid.userId}, currentUserId=${currentUserId}, isYourBid=${isYourBid}`);
-        
+        const isCurrentUserBid = bid.userId === currentUserId;
+        const isWinning = index < totalSeats; // All displayed bids are potentially winning
+        const rank = index + 1;
+
         return (
           <li 
             key={bid.id} 
-            className={`flex justify-between items-center p-2 rounded ${isYourBid ? 'bg-green-100 border border-green-300' : 'bg-amber-50'}`}
+            className={`p-3 rounded-lg flex justify-between items-center transition-all duration-200 ease-in-out ${isCurrentUserBid ? 'bg-purple-100 shadow-md scale-[1.02]' : 'bg-white shadow-sm'} ${isWinning ? 'border-l-4 border-green-500' : 'border-l-4 border-gray-300'}`}
           >
-            <span className="font-medium">
-              {/* Display index, formatted creature name, and indicator */} 
-              {index + 1}. {formatBidderCreatureName(bid.userId, isYourBid)}
-              {isYourBid && <span className="ml-2 text-green-600 font-bold">← Ваша ставка</span>}
-            </span>
-            {/* Display the bid amount */} 
-            <span className="font-bold text-purple-800">
-              {/* Inline formatting */} 
-              {`${bid.amount.toFixed(2)} ₾`}
+            <div className="flex items-center space-x-3">
+              <span 
+                className={`font-bold text-lg w-8 text-center ${isWinning ? 'text-green-700' : 'text-gray-500'}`}
+              >
+                {rank}.
+              </span>
+              <span className={`font-semibold ${isCurrentUserBid ? 'text-purple-800' : 'text-gray-800'}`}>
+                {formatBidderCreatureName(bid.userId)}
+              </span>
+            </div>
+            <span className={`text-lg font-medium ${isWinning ? 'text-green-600' : 'text-gray-600'}`}>
+              {bid.amount.toFixed(2)} ₾
             </span>
           </li>
         );

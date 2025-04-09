@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast'
 import { apiClient } from '@/app/utils/api-client'
 import { Button } from '@/app/components/ui/Button'
 import { Alert } from '@/app/components/ui/Alert'
-import { useTelegram } from '@/app/context/TelegramContext'
+import { useSession } from 'next-auth/react'
 import { ApiResponse } from '@/app/lib/api-utils'
 
 interface BidFormProps {
@@ -26,17 +26,20 @@ export default function BidForm({
   onSuccess, 
   onCancel 
 }: BidFormProps) {
-  const { linkedTelegramInfo, isLoading: isTelegramLoading } = useTelegram()
+  const { data: session, status } = useSession()
+  const isAuthenticated = status === 'authenticated' && session?.user
+  const isLoading = status === 'loading'
+  
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<FormData>()
   const [apiError, setApiError] = useState<string | null>(null)
 
   const onSubmit = async (data: FormData) => {
     setApiError(null)
     
-    if (isTelegramLoading) return
-    if (!linkedTelegramInfo || !linkedTelegramInfo.id) {
-      setApiError('Необходимо связать аккаунт Telegram для размещения ставки.')
-      toast.error('Свяжите аккаунт Telegram!')
+    if (isLoading) return
+    if (!isAuthenticated) {
+      setApiError('Необходимо авторизоваться для размещения ставки.')
+      toast.error('Пожалуйста, войдите в систему!')
       return
     }
     
@@ -90,15 +93,15 @@ export default function BidForm({
           })}
           className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'}`}
           placeholder={`Минимум ${minBidAmount}`}
-          disabled={isSubmitting || isTelegramLoading || !linkedTelegramInfo}
+          disabled={isSubmitting || isLoading || !isAuthenticated}
         />
         {errors.amount && (
           <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
         )}
       </div>
       
-      {!linkedTelegramInfo && !isTelegramLoading && (
-        <p className="text-sm text-red-600">Пожалуйста, свяжите ваш аккаунт Telegram в настройках, чтобы делать ставки.</p>
+      {!isAuthenticated && !isLoading && (
+        <p className="text-sm text-red-600">Пожалуйста, войдите в систему через Telegram, чтобы делать ставки.</p>
       )}
 
       {apiError && (
@@ -118,7 +121,7 @@ export default function BidForm({
         )}
         <Button 
           type="submit" 
-          disabled={isSubmitting || isTelegramLoading || !linkedTelegramInfo}
+          disabled={isSubmitting || isLoading || !isAuthenticated}
         >
           {isSubmitting ? 'Размещение...' : 'Сделать ставку'}
         </Button>

@@ -2,46 +2,41 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTelegram } from '@/app/context/TelegramContext';
-import { apiClient } from '@/app/utils/api-client';
-import { toast } from 'react-hot-toast';
-import { ApiError } from '@/app/utils/api-client';
 import { Button } from '@/app/components/ui/Button';
 import { Loader2 } from 'lucide-react';
 import { getPusherClient } from '@/app/lib/pusher-client';
 import type { Channel } from 'pusher-js';
-
-// Define type for user info received
-interface UserInfo {
-    id: string;
-    telegramFirstName?: string | null;
-    telegramUsername?: string | null;
-    isAdmin?: boolean;
-    isVerified?: boolean;
-}
-
-// Define the expected response structure from /api/auth/set-cookie
-interface SetCookieResponse {
-    success: boolean;
-    message?: string;
-}
+import { signIn } from 'next-auth/react';
+import { toast } from 'react-hot-toast';
+import { apiClient, ApiError } from '@/app/utils/api-client';
 
 interface TelegramLoginProps {
   callbackUrl?: string;
+}
+
+// Define an interface for the expected data in the 'session-created' event
+interface SessionCreatedData {
+  nextAuthToken?: string;
+  error?: string;
+  user?: { // Include user if potentially sent, though not directly used now
+    id: string;
+    telegramFirstName?: string | null;
+    telegramUsername?: string | null;
+  };
 }
 
 export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps) {
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const [channelId, setChannelId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('callbackUrl') || callbackUrl || '/';
   const pusherChannelRef = useRef<Channel | null>(null);
-  const { setLinkedTelegramInfo, setIsLoading: setTelegramLoading } = useTelegram();
-  
+
   useEffect(() => {
     return () => {
       if (pusherChannelRef.current && channelId) {
@@ -73,58 +68,62 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       try {
         pusherChannelRef.current = pusher.subscribe(pusherChannelName);
 
-        pusherChannelRef.current.bind('session-created', async (data: any) => {
+        pusherChannelRef.current.bind('session-created', async (data: SessionCreatedData) => {
           console.log('[Pusher] Event \'session-created\' received:', data);
 
-          if (data.user && data.sessionId) {
-            console.log('[Pusher] Session created via Pusher. User data received:', data.user);
-            
-            console.log('[TelegramLogin] Calling setLinkedTelegramInfo with:', data.user);
-            setTelegramLoading(true);
-            setLinkedTelegramInfo(data.user as UserInfo);
-            setVerificationStatus('success');
-            toast.success('Аккаунт успешно связан!');
+          if (data.nextAuthToken) {
+            console.log('[TelegramLogin] Received NextAuth token via Pusher. Attempting sign in...');
+            setIsSigningIn(true);
+            setError(null);
 
             try {
-              console.log('[TelegramLogin] Setting session cookie...');
-              const cookieResponse = await apiClient.post<SetCookieResponse>('/api/auth/set-cookie', {
-                sessionId: data.sessionId
+              const signInResponse = await signIn('credentials', {
+                verificationToken: data.nextAuthToken,
+                redirect: false,
               });
-              
-              if (!cookieResponse.success) {
-                console.error('[TelegramLogin] Failed to set session cookie:', cookieResponse.message);
-                setError('Ошибка установки сессии. Попробуйте обновить страницу.');
-                toast.error('Ошибка входа. Обновите страницу.');
-                setTelegramLoading(false);
-                return;
-              } 
-              
-              console.log('[TelegramLogin] Session cookie set. Refreshing router...');
-              router.refresh();
-              
-              console.log(`[TelegramLogin] Navigating to: ${returnUrl}`);
-              if (returnUrl !== '/link-telegram') {
-                   router.push(returnUrl);
+
+              setIsSigningIn(false);
+
+              if (signInResponse?.error) {
+                console.error('[NextAuth SignIn Error]:', signInResponse.error);
+                setError(`Ошибка входа: ${signInResponse.error === 'CredentialsSignin' ? 'Неверный или истекший токен верификации.' : signInResponse.error}`);
+                setVerificationStatus('error');
+                toast.error('Ошибка входа. Попробуйте снова.');
+              } else if (signInResponse?.ok) {
+                console.log('[NextAuth SignIn Success]');
+                setVerificationStatus('success');
+                toast.success('Аккаунт успешно связан и вход выполнен!');
+
+                router.refresh();
+
+                console.log(`[TelegramLogin] Navigating to: ${returnUrl}`);
+                if (returnUrl !== '/link-telegram') {
+                  router.push(returnUrl);
+                }
+
+                if (pusherChannelRef.current) {
+                  console.log(`[Pusher] Unsubscribing from channel ${pusherChannelName} after success.`);
+                  pusher.unsubscribe(pusherChannelName);
+                  pusherChannelRef.current = null;
+                }
+              } else {
+                console.warn('[NextAuth SignIn] Unexpected response:', signInResponse);
+                setError('Произошла неожиданная ошибка при входе.');
+                setVerificationStatus('error');
               }
 
-              if (pusherChannelRef.current) {
-                console.log(`[Pusher] Unsubscribing from channel ${pusherChannelName} after success.`);
-                pusher.unsubscribe(pusherChannelName);
-                pusherChannelRef.current = null;
-              }
-
-            } catch (cookieError) {
-              console.error('[TelegramLogin] Error calling /api/auth/set-cookie:', cookieError);
-              setError('Ошибка связи с сервером для установки сессии.');
-              toast.error('Ошибка сервера при входе.');
-              setTelegramLoading(false);
+            } catch (signInError) {
+              setIsSigningIn(false);
+              console.error('[TelegramLogin] Critical error during signIn call:', signInError);
+              setError('Критическая ошибка при попытке входа.');
+              setVerificationStatus('error');
+              toast.error('Критическая ошибка входа.');
             }
-            
           } else if (data.error) {
-             console.error('[Pusher] Received error message via Pusher:', data.error);
-             setError(data.error || 'Ошибка верификации на сервере (Pusher).');
-             setVerificationStatus('error');
-             toast.error(data.error || 'Ошибка верификации (Pusher).');
+            console.error('[Pusher] Received error message via Pusher:', data.error);
+            setError(data.error || 'Ошибка верификации на сервере (Pusher).');
+            setVerificationStatus('error');
+            toast.error(data.error || 'Ошибка верификации (Pusher).');
           } else {
             console.warn('[Pusher] Received unknown data structure on session-created event:', data);
           }
@@ -134,7 +133,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
           console.log(`[Pusher] Successfully subscribed to ${pusherChannelName}`);
         });
 
-        pusherChannelRef.current.bind('pusher:subscription_error', (status: any) => {
+        pusherChannelRef.current.bind('pusher:subscription_error', (status: { status: number; error?: undefined }) => {
           console.error(`[Pusher] Subscription error for ${pusherChannelName}:`, status);
           setError(`Ошибка подписки на канал уведомлений (${status.status}). Проверьте конфигурацию.`);
           setVerificationStatus('error');
@@ -146,13 +145,14 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
         setVerificationStatus('error');
       }
     }
-  }, [channelId, verificationStatus, setLinkedTelegramInfo, router, returnUrl, setTelegramLoading, pusherChannelRef]);
+  }, [channelId, verificationStatus, router, returnUrl, pusherChannelRef]);
   
   const handleGenerateCodeClick = async () => {
-    if (isLoading) return; 
+    if (isLoading || isSigningIn) return;
     
     try {
       setIsLoading(true);
+      setIsSigningIn(false);
       setError(null);
       setVerificationCode(null);
       setChannelId(null);
@@ -163,6 +163,8 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
         getPusherClient().unsubscribe(`private-${channelId}`);
         pusherChannelRef.current = null;
       }
+      
+      setChannelId(null);
       
       const result = await apiClient.post<{
          success: boolean; 
@@ -179,13 +181,14 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       setChannelId(result.channelId || null);
       setVerificationStatus('pending');
       
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof ApiError) {
           setError(err.message);
       } else if (err instanceof Error) {
           setError(err.message);
       } else {
-          setError('Что-то пошло не так');
+          console.error('Unknown error during code generation:', err);
+          setError('Что-то пошло не так при генерации кода');
       }
       setVerificationStatus('error');
     } finally {
@@ -198,9 +201,9 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       <h2 className="text-xl font-semibold">Вход через Telegram</h2>
       
       {!verificationCode && (
-        <Button onClick={handleGenerateCodeClick} disabled={isLoading}>
-          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {isLoading ? 'Генерация...' : 'Получить код для входа'}
+        <Button onClick={handleGenerateCodeClick} disabled={isLoading || isSigningIn}>
+          {(isLoading || isSigningIn) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {isLoading ? 'Генерация...' : (isSigningIn ? 'Вход...': 'Получить код для входа')}
         </Button>
       )}
 
@@ -212,8 +215,10 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
         <div className="text-center space-y-2">
           <p>Отправьте этот код нашему Telegram боту:</p>
           <p className="text-2xl font-bold tracking-widest bg-gray-100 px-4 py-2 rounded">{verificationCode}</p>
-          <p className="text-sm text-gray-500">Ожидаем подтверждения от Telegram...</p>
-           <Loader2 className="mx-auto h-6 w-6 animate-spin text-blue-500" />
+          <p className="text-sm text-gray-500">
+            {isSigningIn ? 'Проверка токена и вход...' : 'Ожидаем подтверждения от Telegram...'}
+          </p>
+          {(isLoading || isSigningIn) && <Loader2 className="mx-auto h-6 w-6 animate-spin text-blue-500" />}
         </div>
       )}
 
@@ -226,8 +231,8 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       )}
 
       {verificationStatus !== 'pending' && verificationStatus !== 'success' && verificationCode && (
-          <Button onClick={handleGenerateCodeClick} disabled={isLoading} variant="outline" size="sm">
-             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          <Button onClick={handleGenerateCodeClick} disabled={isLoading || isSigningIn} variant="outline" size="sm">
+             {(isLoading || isSigningIn) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
              Получить новый код
           </Button>
       )}

@@ -7,7 +7,6 @@ import { processEndedAuctions } from '../app/tasks/notifyWinners';
 async function main() {
   console.log('Running scheduled tasks...');
   try {
-    // Add more tasks here if needed
     await processEndedAuctions();
     console.log('Scheduled tasks completed.');
   } catch (error) {

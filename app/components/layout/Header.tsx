@@ -1,95 +1,72 @@
 'use client';
 
 import Link from 'next/link';
-import { useTelegram } from '@/app/context/TelegramContext';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useSession, signOut } from 'next-auth/react'; // Import useSession and signOut
+import { Button } from '@/app/components/ui/Button';
+import { LogIn, LogOut, UserCircle } from 'lucide-react';
 import { useState } from 'react';
-import { apiClient, ApiError } from '@/app/utils/api-client'; // Import apiClient and ApiError
-import { toast } from 'react-hot-toast'; // Import toast
 
 export default function Header() {
-  // Use router for navigation after logout
-  const router = useRouter();
-  const { linkedTelegramInfo, isLoading, setLinkedTelegramInfo } = useTelegram(); // Get setLinkedTelegramInfo
+  // Use the useSession hook from next-auth
+  const { data: session, status } = useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const isLoading = status === 'loading';
+  const user = session?.user; // User object is nested under session.user
+
+  console.log(`[Header] Rendering. Auth status: ${status}, User:`, user);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      // Use apiClient.post instead of fetch
-      const result = await apiClient.post<{ success: boolean; error?: string }>('/api/auth/logout'); // POST, no body
-      
-      // apiClient throws on non-2xx, so reaching here means success
-      if (result.success) { 
-        console.log('Logout successful');
-        setLinkedTelegramInfo(null); 
-        router.push('/'); 
-        router.refresh();
-      } else {
-        // Handle cases where API returns 2xx but { success: false }
-        console.error("Logout API returned success:false:", result.error || 'Unknown error');
-        toast.error(result.error || 'Ошибка выхода'); // Show error toast
-      }
+      // Use signOut from next-auth
+      await signOut({ redirect: true, callbackUrl: '/' }); // Redirect to home after logout
     } catch (error) {
-      console.error("Error during logout:", error);
-      // Handle ApiError or other errors
-      let message = 'Ошибка выхода';
-      if (error instanceof ApiError) {
-        message = error.message || message;
-      } else if (error instanceof Error) {
-        message = error.message;
-      }
-      toast.error(message); // Show error toast
-    } finally {
+      console.error('Logout failed:', error);
+      // Optionally show an error toast
       setIsLoggingOut(false);
     }
+    // No need to setIsLoggingOut(false) on success because of redirect
   };
 
-  // Log the state received from context before rendering
-  console.log('[Header] Rendering. isLoading:', isLoading, 'linkedTelegramInfo:', linkedTelegramInfo);
-
   return (
-    <header className="bg-white text-purple-900 shadow-md fixed top-0 left-0 right-0 z-10">
+    <header className="bg-gradient-to-r from-purple-800 to-indigo-900 text-white shadow-md fixed top-0 left-0 right-0 z-50">
       <nav className="container mx-auto px-4 py-3 flex justify-between items-center">
-        <div className="flex items-center space-x-6">
-          <Link href="/" className="text-xl font-bold hover:text-purple-700 transition-colors">
-            Roll to Help
-          </Link>
-          <div className="flex items-center space-x-4">
-            <Link href="/games" prefetch={false} className="font-medium hover:text-purple-700 transition-colors px-4 py-2 rounded-md flex items-center">
-              Игры
+        <Link href="/" className="text-2xl font-bold tracking-tight hover:opacity-90 transition-opacity">
+          Roll to Help
+        </Link>
+        <div className="flex items-center space-x-4">
+          {isLoading ? (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <span className="text-sm">Загрузка...</span>
+            </div>
+          ) : user ? (
+            // User is logged in
+            <div className="flex items-center space-x-3">
+              <span className="text-sm hidden sm:inline">
+                Привет, {user.telegramFirstName || user.telegramUsername || 'участник'}!
+              </span>
+              <UserCircle className="h-6 w-6 text-green-400" />
+              <Button 
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                variant="secondary"
+                size="sm"
+              >
+                <LogOut className="mr-1 h-4 w-4" />
+                {isLoggingOut ? 'Выход...' : 'Выйти'}
+              </Button>
+            </div>
+          ) : (
+            // User is not logged in
+            <Link href="/link-telegram" passHref>
+              <Button variant="secondary" size="sm">
+                <LogIn className="mr-1 h-4 w-4" />
+                Войти через Telegram
+              </Button>
             </Link>
-          </div>
-        </div>
-        
-        <div className="flex items-center">
-          {/* Conditional Login/User display - check loading state first */} 
-          <div className="text-right"> 
-            {isLoading ? (
-              // Render nothing or a subtle loading placeholder while loading
-              <span className="text-sm opacity-50 px-4 py-2">Загрузка...</span> 
-            ) : linkedTelegramInfo ? (
-              // Render linked info if not loading and info exists
-              <div className="flex items-center space-x-2">
-                <span className="bg-purple-100 text-purple-900 px-4 py-2 rounded-md">
-                  <span className="mr-2 text-sm">Связан:</span>
-                  <span className="font-medium text-sm">@{linkedTelegramInfo.telegramFirstName || 'Пользователь'}</span>
-                </span>
-                <button 
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  {isLoggingOut ? 'Выход...' : 'Выйти'}
-                </button>
-              </div>
-            ) : (
-
-              <Link href="/link-telegram" className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors inline-block">
-                Войти
-              </Link>
-            )}
-          </div>
+          )}
         </div>
       </nav>
     </header>

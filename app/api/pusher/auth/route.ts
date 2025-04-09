@@ -1,23 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pusherServer } from '@/app/lib/pusher-server';
-import { getSessionIdFromCookie } from '@/app/lib/auth'; // Assuming you have a way to get session/user ID
+import { getServerSession } from 'next-auth/next'; // Import next-auth session getter
+import { authOptions } from '@/app/api/auth/[...nextauth]/options'; // Import auth options
 
 /**
- * Authenticates Pusher subscriptions for private channels.
+ * Authenticates Pusher subscriptions for private channels using NextAuth session.
  * See: https://pusher.com/docs/channels/server_api/authenticating-users/
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Verify the user is authenticated (e.g., via session cookie)
-    const sessionId = await getSessionIdFromCookie(request);
-    if (!sessionId) {
-      console.warn('[Pusher Auth] Denied: User not authenticated.');
+    // 1. Verify the user is authenticated using NextAuth session
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      console.warn('[Pusher Auth] Denied: User not authenticated (No NextAuth session).');
       return new NextResponse('Forbidden', { status: 403 });
     }
 
-    // You might want to load the user data based on sessionId if needed for auth logic
-    // const user = await getUserBySessionId(sessionId);
-    // if (!user) { ... }
+    // User is authenticated, get their ID from the session
+    // @ts-expect-error - we have added sub field to session.user in our NextAuth config
+    const userId = session.user.sub;
+    console.log(`[Pusher Auth] User authenticated: ${userId}`);
 
     // 2. Get socket_id and channel_name from the request body
     const formData = await request.formData();
@@ -29,24 +32,22 @@ export async function POST(request: NextRequest) {
         return new NextResponse('Bad Request', { status: 400 });
     }
 
-    // 3. Basic Authorization: Ensure the channel name follows expected pattern
-    // For this app, the user should only be able to subscribe to their own channelId channel.
-    // We extract the channelId from the channel name (e.g., 'private-xxxx')
+    // 3. Basic Authorization: Ensure channel starts with 'private-'
     const channelIdPrefix = 'private-';
     if (!channel.startsWith(channelIdPrefix)) {
         console.warn(`[Pusher Auth] Denied: Channel name '${channel}' does not start with '${channelIdPrefix}'.`);
         return new NextResponse('Forbidden', { status: 403 });
     }
-    // Note: We don't strictly need to verify the channelId against the user's session here,
-    // because the channelId is generated per-login attempt. The important part is that
-    // *only authenticated users* can get *any* private channel authorized.
-    // If channel names were based on user IDs, you *would* need to verify here.
+    // As noted before, we don't need to strictly match the channelId part to the user
+    // for this specific login flow, just ensure they are logged in.
 
-    // 4. Prepare Pusher authentication data
-    // No presence data needed for this use case
+    // 4. Prepare Pusher authentication data, including user_id for presence channels
     const authData = {
-      // user_id: user.id, // Required if using presence channels
-      // user_info: { name: user.name }, // Optional extra info
+      user_id: userId,
+      user_info: { // Optional: Add user info if needed by presence channels
+        name: session.user.telegramFirstName || session.user.telegramUsername || userId,
+        // Add other relevant info from session.user if needed
+      },
     };
 
     if (!pusherServer) {
@@ -57,19 +58,20 @@ export async function POST(request: NextRequest) {
     // 5. Authorize the subscription
     const authResponse = pusherServer.authorizeChannel(socketId, channel, authData);
 
-    console.log(`[Pusher Auth] Granted: socket_id=${socketId}, channel=${channel}`);
+    console.log(`[Pusher Auth] Granted: socket_id=${socketId}, channel=${channel}, user_id=${userId}`);
 
     // 6. Return the authentication signature
     return NextResponse.json(authResponse);
 
   } catch (error) {
     console.error('[Pusher Auth] Error authorizing channel:', error);
-    logApiError('/api/pusher/auth', error); // Assuming logApiError exists
+    logApiError('/api/pusher/auth', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
 
 // Helper function (assuming it exists and handles potential errors)
-async function logApiError(path: string, error: any) {
-    console.error(`API Error at ${path}:`, error);
+// Explicitly type error as unknown for better handling
+async function logApiError(path: string, error: unknown) {
+    console.error(`API Error at ${path}:`, error instanceof Error ? error.message : error);
 } 

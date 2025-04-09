@@ -126,7 +126,7 @@ function configureBot() {
         await ctx.reply(replyMessage); 
 
         // --- Trigger Pusher Notification (Only on SUCCESS) --- 
-        if (verificationResult.success && verificationResult.channelId && verificationResult.sessionId && verificationResult.user) {
+        if (verificationResult.success && verificationResult.channelId && verificationResult.nextAuthToken && verificationResult.user) {
           console.log(`[Telegram Handler] Verification success. Triggering Pusher for Channel: private-${verificationResult.channelId}`);
           
           const pusherEvent = 'session-created'; // Event name must match client
@@ -137,7 +137,7 @@ function configureBot() {
                   telegramFirstName: verificationResult.user.telegramFirstName, 
                   telegramUsername: verificationResult.user.telegramUsername, 
               }, 
-              sessionId: verificationResult.sessionId 
+              nextAuthToken: verificationResult.nextAuthToken
           };
           
           try {
@@ -160,8 +160,13 @@ function configureBot() {
               // Maybe reply differently in Telegram?
           }
         } else if (verificationResult.success) {
-             console.warn(`[Telegram Handler] Verification successful but missing data for Pusher notification. Result:`, verificationResult);
-             logApiError('telegram-pusher-missing-data', new Error('Missing data after successful verification'), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user?.id, hasUser: !!verificationResult.user });
+             console.warn(`[Telegram Handler] Verification successful but missing data for Pusher notification (e.g., token). Result:`, verificationResult);
+             logApiError('telegram-pusher-missing-data', new Error('Missing data after successful verification'), { 
+                 channelId: verificationResult.channelId, 
+                 userId: verificationResult.user?.id, 
+                 hasUser: !!verificationResult.user, 
+                 hasNextAuthToken: !!verificationResult.nextAuthToken 
+             });
         }
         // --- End Pusher Notification Block ---
 

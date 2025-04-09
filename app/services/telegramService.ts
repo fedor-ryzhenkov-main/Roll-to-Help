@@ -8,10 +8,9 @@ import { getCreatureNameForUser } from '@/app/utils/creatureNames';
 import { CURRENCY_SYMBOL } from '@/app/config/constants';
 import { logApiError } from '@/app/lib/api-utils';
 import { getBotInstance } from '@/app/lib/telegram';
-import { nanoid } from 'nanoid';
+import { generateAndStoreNextAuthToken } from '@/app/lib/auth-utils';
 
 const prisma = new PrismaClient();
-const SESSION_EXPIRY_SECONDS = 60 * 60 * 24 * 7; 
 
 // Define a type for Game that includes the specific bid info needed
 type GameWithWinningBid = Game & {
@@ -144,48 +143,49 @@ async function findOrCreateUserByTelegram(telegramId: string, telegramContext?: 
 }
 
 // Define return type for the service function
-// Remove the `message` property, add a `reason` for failures
+// Replace sessionId with nextAuthToken
 interface LinkResult {
-    success: boolean; 
-    reason?: 'invalid' | 'already_verified' | 'expired' | 'no_channel' | 'db_error' | 'internal_error';
-    channelId?: string | null; 
-    user?: { 
-      id: string; 
-      telegramFirstName?: string | null; // Use consistent naming
-      telegramUsername?: string | null; 
-      // Add other relevant fields if needed (e.g., isAdmin, isVerified)
-    }; 
-    sessionId?: string; 
+    success: boolean;
+    reason?: 'invalid' | 'already_verified' | 'expired' | 'no_channel' | 'db_error' | 'internal_error' | 'token_error';
+    pendingVerificationId?: string; // Pass this back to generate token
+    channelId?: string | null;
+    user?: {
+      id: string;
+      telegramFirstName?: string | null;
+      telegramUsername?: string | null;
+    };
+    nextAuthToken?: string | null; // ADDED: The temporary token for NextAuth sign-in
 }
 
 /**
  * Finds a pending verification by code, links the telegramId TO A USER,
- * creates a server-side session in the DB, and returns info needed by webhook/WS.
+ * generates a temporary NextAuth token, and returns info needed by the webhook.
  * @param code Verification code sent by the user
  * @param telegramId Telegram ID of the user sending the code
  * @param telegramContext Optional context to get user's name/username
  * @returns Object indicating success/failure and relevant data/reason.
  */
 export async function linkTelegramToVerificationCode(
-    code: string, 
+    code: string,
     telegramId: string,
     telegramContext?: { first_name?: string; username?: string; last_name?: string; photo_url?: string }
-): Promise<LinkResult> { 
+): Promise<LinkResult> {
+  let verificationId: string | undefined;
   try {
     const verification = await prisma.pendingVerification.findUnique({
       where: { verificationCode: code },
     });
+    verificationId = verification?.id;
 
     // Basic validation
     if (!verification) {
-      return { success: false, reason: 'invalid' }; // Return reason instead of message
+      return { success: false, reason: 'invalid' };
     }
     if (verification.isVerified) {
-      // No need to distinguish who verified it here, just that it's done
-      return { success: false, reason: 'already_verified' }; 
+      return { success: false, reason: 'already_verified' };
     }
-    if (verification.expires < new Date()) {
-      // Attempt to delete expired code, but proceed to return failure regardless
+    // Use expires field directly
+    if (verification.expires < new Date()) { 
       try {
          await prisma.pendingVerification.delete({ where: { id: verification.id } });
       } catch (delError) {
@@ -198,59 +198,54 @@ export async function linkTelegramToVerificationCode(
         logApiError('telegram-link-code', new Error('Missing channelId in PendingVerification'), { code });
         return { success: false, reason: 'no_channel' };
     }
-    
+
     // --- Link to User --- 
     const user = await findOrCreateUserByTelegram(telegramId, telegramContext);
     // ---------------------
 
-    // --- Create Session in DB --- 
-    const sessionId = nanoid(32); 
-    const expiresAt = new Date(Date.now() + SESSION_EXPIRY_SECONDS * 1000); 
-    try {
-        await prisma.session.create({
-          data: {
-            sessionId: sessionId,
-            userId: user.id,
-            expiresAt: expiresAt,
-          }
-        });
-        console.log(`Session created in DB for user ${user.id} with sessionId ${sessionId}`);
-    } catch (dbError) {
-        logApiError('telegram-link-code', new Error('Failed to store session in DB'), { userId: user.id });
-        console.error('[DB Error] Failed to create session:', dbError);
-        return { success: false, reason: 'db_error' };
-    }
-    // ---------------------
-
-    // Update PendingVerification
+    // Update PendingVerification (mark as verified, store userId)
+    // We will generate and store the nextAuth token separately AFTER this update
     await prisma.pendingVerification.update({
       where: { id: verification.id },
       data: {
         isVerified: true,
-        telegramId: telegramId, 
-        verificationToken: null, 
-        verifiedUserId: user.id, 
+        telegramId: telegramId,
+        verifiedUserId: user.id,
+        verificationToken: null, // Ensure any old token is cleared initially
       },
     });
 
-    // Prepare user details 
+    // --- Generate and Store NextAuth Token ---
+    const nextAuthToken = await generateAndStoreNextAuthToken(verification.id);
+    if (!nextAuthToken) {
+        logApiError('telegram-link-code', new Error('Failed to generate NextAuth token'), { verificationId: verification.id, userId: user.id });
+        // Provide a specific reason for token generation failure
+        return { 
+            success: false, 
+            reason: 'token_error', 
+            channelId: verification.channelId, // Still need channelId to potentially notify client of error
+            user: { id: user.id, telegramFirstName: user.telegramFirstName, telegramUsername: user.telegramUsername } 
+        };
+    }
+    // ---------------------------------------
+
+    // Prepare user details for return
     const userInfo = {
         id: user.id,
-        firstName: user.telegramFirstName,
+        telegramFirstName: user.telegramFirstName,
         telegramUsername: user.telegramUsername,
     };
 
-    // Return success and data
-    return { 
-        success: true, 
-        // No message property needed here
-        channelId: verification.channelId, 
-        user: userInfo, 
-        sessionId: sessionId 
+    // Return success and data including the NextAuth token
+    return {
+        success: true,
+        channelId: verification.channelId,
+        user: userInfo,
+        nextAuthToken: nextAuthToken, // Return the new token
     };
 
   } catch (error) {
-    logApiError('telegram-link-code', error, { code, telegramId });
-    return { success: false, reason: 'internal_error' }; // Generic internal error reason
+    logApiError('telegram-link-code', error, { code, telegramId, verificationId });
+    return { success: false, reason: 'internal_error' };
   }
 } 

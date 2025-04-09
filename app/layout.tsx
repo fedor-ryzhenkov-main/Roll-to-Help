@@ -1,8 +1,8 @@
-import './globals.css'
-import { Poppins } from 'next/font/google'
-import { TelegramProvider } from './context/TelegramContext'
+import { Poppins } from "next/font/google";
+import "@/app/globals.css";
 import Header from './components/layout/Header'
 import { Toaster } from 'react-hot-toast';
+import NextAuthProvider from "@/app/context/NextAuthProvider";
 
 const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
@@ -35,13 +35,13 @@ export default function RootLayout({
             style={{
               background: 'linear-gradient(to bottom, #ede9f6 0%, #eae4f4 20%, #e6dfef 40%, #ece5e0 60%, #f0ebd1 80%, #f5ecb5 100%)'
             }}>
-        <TelegramProvider>
+        <NextAuthProvider>
+          <Toaster position="bottom-center" />
           <Header />
           <main className="flex-grow container mx-auto px-4 py-8 pt-20">
             {children}
           </main>
-          <Toaster position="bottom-center" />
-        </TelegramProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );

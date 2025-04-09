@@ -1,38 +1,38 @@
 'use client';
 
 import Link from 'next/link';
-import { useTelegram } from "@/app/context/TelegramContext";
+import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/app/components/ui";
-import { apiClient } from "@/app/utils/api-client";
 import { toast } from "react-hot-toast";
 import { useState } from "react";
-import { ApiResponse } from "@/app/lib/api-utils";
 
 export default function NavBar() {
-  const { linkedTelegramInfo, isLoading, setLinkedTelegramInfo } = useTelegram();
+  const { data: session, status } = useSession();
+  const isLoading = status === 'loading';
+  const isAuthenticated = status === 'authenticated' && session?.user;
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const response = await apiClient.post<ApiResponse>('/api/auth/logout');
-      
-      if (response.success) {
-        console.log("Logout successful on server.");
-        toast.success('Вы успешно вышли.');
-      } else {
-        console.error("Server logout failed:", response.error?.message);
-        toast.error('Ошибка выхода из системы.');
-      }
+      await signOut({ redirect: false });
+      toast.success('Вы успешно вышли.');
     } catch (error) {
-      console.error("Error calling logout API:", error);
-      toast.error('Ошибка связи при выходе.');
+      console.error("Error during sign out:", error);
+      toast.error('Ошибка выхода из системы.');
     } finally {
-      setLinkedTelegramInfo(null);
       setIsLoggingOut(false);
-      console.log("User logged out (cleared local state).");
+      console.log("User logged out.");
     }
   };
+
+  // Get user display info from session
+  const userDisplayName = 
+    session?.user?.telegramFirstName || 
+    session?.user?.telegramUsername || 
+    'User';
+  
+  const telegramUsername = session?.user?.telegramUsername;
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md shadow-sm py-3 px-4 sm:px-6 lg:px-8 z-50">
@@ -47,12 +47,12 @@ export default function NavBar() {
           </Link>
           {isLoading ? (
             <span className="text-sm text-gray-500">Загрузка...</span>
-          ) : linkedTelegramInfo ? (
+          ) : isAuthenticated ? (
             <div className="flex items-center space-x-2 sm:space-x-3">
               <span className="text-sm hidden sm:inline">
-                Привет, {linkedTelegramInfo.telegramFirstName || linkedTelegramInfo.telegramUsername || 'User'}!
-                {linkedTelegramInfo.telegramUsername && (
-                  <span className="ml-1 text-green-600">(✅ @{linkedTelegramInfo.telegramUsername})</span>
+                Привет, {userDisplayName}!
+                {telegramUsername && (
+                  <span className="ml-1 text-green-600">(✅ @{telegramUsername})</span>
                 )}
               </span>
               <Button 

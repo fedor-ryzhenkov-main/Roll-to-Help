@@ -4,57 +4,74 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useTelegram } from '@/app/context/TelegramContext';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Bid } from '@/app/types';
 import ErrorMessage from './ErrorMessage';
 import ErrorBoundary from './ErrorBoundary';
 import { apiClient, ApiError } from '@/app/utils/api-client';
 import { toast } from 'react-hot-toast';
+import { Button } from '@/app/components/ui/Button';
+import { Alert } from "@/app/components/ui/Alert";
+import { Terminal, UserPlus } from "lucide-react"
+
+// Define schema creation function locally
+const createBidSchema = (minBid: number) => z.object({
+  amount: z.number({
+      required_error: "Сумма ставки обязательна",
+      invalid_type_error: "Сумма должна быть числом",
+    })
+    .positive('Сумма должна быть положительной')
+    .min(minBid, `Минимальная ставка: ${minBid.toFixed(2)} ₾`)
+    .refine(val => val * 100 === Math.floor(val * 100), { // Check for max 2 decimal places
+        message: "Пожалуйста, укажите не более двух знаков после запятой."
+    })
+});
 
 interface PlaceBidProps {
   gameId: string;
   startingPrice: number;
   currentMinWinningBid: number;
+  onBidPlaced?: (newBid: Bid) => void;
 }
 
-const createBidSchema = (minBid: number) => z.object({
-  amount: z.number()
-            .positive('Сумма должна быть положительной')
-            .min(minBid, `Сумма должна быть не менее ${minBid.toFixed(2)} ₾, чтобы выиграть`)
-
-});
-
-export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }: PlaceBidProps) {
-  const { linkedTelegramInfo, isLoading: isLoadingTelegramInfo } = useTelegram();
+export default function PlaceBid({ 
+    gameId, 
+    startingPrice, 
+    currentMinWinningBid, 
+    onBidPlaced 
+}: PlaceBidProps) {
+  // Use useSession hook for status only
+  const { status } = useSession(); 
+  const isLoadingSession = status === 'loading';
+  const isAuthenticated = status === 'authenticated';
   const router = useRouter();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const minBidRequired = currentMinWinningBid <= startingPrice 
                           ? startingPrice 
-                          : currentMinWinningBid + 10; 
+                          : currentMinWinningBid + 1;
   
   const bidSchema = createBidSchema(minBidRequired);
-  
   type BidFormData = z.infer<typeof bidSchema>;
 
+  // Only get needed methods/state from useForm
   const { register, handleSubmit, formState: { errors }, reset } = useForm<BidFormData>({ 
     resolver: zodResolver(bidSchema),
     defaultValues: {
-      amount: parseFloat(minBidRequired.toFixed(2)) 
+      amount: parseFloat(minBidRequired.toFixed(2))
     }
   });
 
-  const canBid = !isLoadingTelegramInfo && !!linkedTelegramInfo;
+  const canBid = !isLoadingSession && isAuthenticated;
 
   const handlePlaceBid = async (data: BidFormData) => {
-    setSuccessMessage(null);
     setError(null);
 
-    if (!canBid || !linkedTelegramInfo) {
-      setError('Пожалуйста, сначала свяжите ваш Telegram аккаунт.');
+    if (!canBid) {
+      setError('Пожалуйста, сначала войдите через Telegram.');
       return;
     }
 
@@ -71,8 +88,11 @@ export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }
       const result = await apiClient.post<{ bid: Bid }>('/api/bids', payload);
 
       if (result?.bid) {
-          setSuccessMessage(`Успешно! Ваша ставка ${result.bid.amount.toFixed(2)} ₾ принята!`);
+          toast.success(`Успешно! Ваша ставка ${result.bid.amount.toFixed(2)} ₾ принята!`);
           reset();
+          if (onBidPlaced) {
+            onBidPlaced(result.bid);
+          }
           router.refresh();
       } else {
           console.error('Bid response successful but data format unexpected:', result);
@@ -81,105 +101,68 @@ export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }
       }
 
     } catch (err) {
-      console.error("Bid submission error:", err);
-      
-      let errorMessage = 'Произошла ошибка при размещении ставки.';
+      console.error('Bid submission error:', err);
+      let message = 'Произошла ошибка при размещении ставки.';
       if (err instanceof ApiError) {
-        errorMessage = err.message || 'Ошибка API.';
-        if (err.status === 401) {
-           errorMessage = 'Ошибка аутентификации. Попробуйте войти снова.';
-        } else if (err.status === 403) {
-           errorMessage = 'Ошибка авторизации или CSRF. Попробуйте обновить страницу.';
-        } else if (err.status === 400) {
-           errorMessage = err.message || 'Неверные данные ставки.'; 
-        } 
+        message = err.message || message;
       } else if (err instanceof Error) {
-        errorMessage = err.message;
-      } 
-      
-      setError(errorMessage);
-      toast.error(errorMessage);
-      
+        message = err.message || message;
+      }
+      setError(message);
+      toast.error(`Ошибка ставки: ${message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoadingTelegramInfo) {
-    return <div className="text-center text-gray-500">Загрузка...</div>;
-  }
-
-  if (!linkedTelegramInfo) {
-    return (
-      <div className="text-center p-4 border border-orange-200 rounded-md bg-orange-50">
-        <p className="text-orange-700">
-          Пожалуйста, <a href="/link-telegram" className="font-semibold underline hover:text-orange-800">свяжите ваш Telegram</a>, чтобы делать ставки.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <ErrorBoundary>
-      <div className="bg-amber-50 p-6 rounded-lg shadow-inner">
-        <h2 className="text-xl font-semibold text-purple-900 mb-4">Участвуйте в благотворительном аукционе</h2>
+    <ErrorBoundary fallback={<p>Ошибка загрузки формы ставки.</p>}>
+      <form onSubmit={handleSubmit(handlePlaceBid)} className="space-y-4 p-4 border rounded-lg shadow bg-white">
+        <h3 className="text-lg font-semibold text-purple-800 border-b pb-2 mb-3">Сделать ставку</h3>
+        
+        {isLoadingSession && (
+             <p className="text-sm text-gray-500">Проверка статуса входа...</p>
+        )}
+        {!isLoadingSession && !isAuthenticated && (
+            <Alert icon={<UserPlus className="h-5 w-5" />} className="bg-yellow-50 border-yellow-200 text-yellow-800">
+              <h5 className="font-semibold mb-1">Требуется вход</h5>
+              <div className="text-sm text-yellow-700">
+                Пожалуйста, <Link href={`/link-telegram?callbackUrl=/games/${gameId}`} className="font-medium underline hover:text-yellow-900">войдите через Telegram</Link>, чтобы сделать ставку.
+              </div>
+            </Alert>
+        )}
+        
+        <div className="space-y-2">
+          <label htmlFor="amount" className="block text-sm font-medium text-gray-700">Ваша ставка (Минимум: {minBidRequired.toFixed(2)} ₾)</label>
+          <input 
+            id="amount"
+            type="number"
+            step="0.01" 
+            {...register('amount', { valueAsNumber: true })} 
+            placeholder={`Например, ${minBidRequired.toFixed(2)}`}
+            aria-invalid={errors.amount ? "true" : "false"}
+            disabled={!canBid || isSubmitting}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.amount ? 'border-red-500 ring-red-500' : 'border-gray-300 ring-purple-500'}`}
+          />
+          {errors.amount && (
+            <ErrorMessage message={errors.amount.message || 'Неверная сумма'} />
+          )}
+        </div>
 
-        <form onSubmit={handleSubmit(handlePlaceBid)} className="space-y-4">
-          <div>
-            <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-              Ваша ставка (₾) - мин. {minBidRequired.toFixed(2)}
-            </label>
-            <input
-              id="amount"
-              type="number"
-              step="10"
-              {...register('amount', { valueAsNumber: true })}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${errors.amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-purple-500'}`}
-              placeholder={`Минимум ${minBidRequired.toFixed(2)}`}
-              min={minBidRequired}
-              disabled={isSubmitting || !canBid}
-            />
-            {errors.amount && (
-              <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
-            )}
-          </div>
-          
-          {/* Display API errors with our error component */}
-          {error && (
-            <ErrorMessage 
-              message={error} 
-              severity="error" 
-            />
-          )}
-          
-          {/* Display success message */}
-          {successMessage && (
-            <ErrorMessage 
-              message={successMessage} 
-              severity="info" 
-              className="bg-green-50 border-green-300 text-green-700"
-            />
-          )}
-          
-          <button
-            type="submit"
-            disabled={isSubmitting || !canBid}
-            className="w-full bg-purple-700 hover:bg-purple-800 disabled:bg-gray-400 text-white font-medium py-2 px-4 rounded-md flex items-center justify-center transition-colors"
-          >
-            {isSubmitting ? (
-              <span className="flex items-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Отправка ставки...
-              </span>
-            ) : (
-              'Сделать ставку'
-            )}
-          </button>
-        </form>
-      </div>
+        {error && (
+          <Alert variant="error" title="Ошибка" icon={<Terminal className="h-5 w-5" />}>
+            <div className="text-sm">{error}</div>
+          </Alert>
+        )}
+
+        <Button 
+          type="submit" 
+          disabled={!canBid || isSubmitting || !!errors.amount}
+          className="w-full"
+        >
+          {isSubmitting ? 'Размещение ставки...' : 'Сделать ставку'}
+        </Button>
+      </form>
     </ErrorBoundary>
   );
 } 

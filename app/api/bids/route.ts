@@ -1,31 +1,9 @@
 import { NextRequest } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { createBid } from '@/app/services/bidService'
 import { createSuccessResponse, createErrorResponse, HttpStatus } from '@/app/lib/api-utils'
 import { validateCsrfToken } from '@/app/lib/api-middleware'
-import prisma from '@/app/lib/db'
-
-
-const SESSION_COOKIE_NAME = 'sid';
-
-/**
- * Helper function to get authenticated user ID from DB session
- */
-async function getUserIdFromSession(request: NextRequest): Promise<{ userId: string | null; shouldClearCookie: boolean }> {
-  const sessionId = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  if (!sessionId) return { userId: null, shouldClearCookie: false };
-
-  const session = await prisma.session.findUnique({
-    where: { sessionId: sessionId },
-  });
-
-  // Check if session exists and is not expired
-  if (!session || session.expiresAt < new Date()) {
-    console.log(`getUserIdFromSession: Session invalid/expired for sessionId: ${sessionId}`);
-    // Indicate that the cookie should be cleared by the caller
-    return { userId: null, shouldClearCookie: true }; 
-  }
-  return { userId: session.userId, shouldClearCookie: false };
-}
 
 /**
  * POST /api/bids
@@ -35,25 +13,23 @@ async function getUserIdFromSession(request: NextRequest): Promise<{ userId: str
  */
 export async function POST(req: NextRequest) {
   try {
-    // --- Authentication Check ---
-    const { userId, shouldClearCookie } = await getUserIdFromSession(req);
+    // --- Authentication Check using NextAuth ---
+    const session = await getServerSession(authOptions);
     
-    if (!userId) {
-      const response = createErrorResponse('Authentication required', HttpStatus.UNAUTHORIZED);
-      if (shouldClearCookie) {
-        // Clear the invalid cookie using the Response object
-        response.cookies.set(SESSION_COOKIE_NAME, '', { maxAge: -1, path: '/' });
-      }
-      return response;
+    if (!session || !session.user) {
+      return createErrorResponse('Authentication required', HttpStatus.UNAUTHORIZED);
     }
+    
+    // Based on our NextAuth config, we need to extract user ID differently
+    // In the NextAuth setup, default User has no id field directly
+    // @ts-expect-error - we have added sub field to session.user in our NextAuth config
+    const userId = session.user.sub;
+    if (!userId) {
+      return createErrorResponse('Invalid user session', HttpStatus.UNAUTHORIZED);
+    }
+    
     console.log(`Bid request authenticated for userId: ${userId}`);
     // --------------------------
-    
-    // Removed rate limiting application
-    /*
-    const rateLimit = applyRateLimit(req, { limit: 10, windowMs: 60000 });
-    if (!rateLimit.success) return rateLimit.error;
-    */
     
     // Validate CSRF token (If implemented properly)
     const csrfResult = validateCsrfToken(req);
@@ -61,7 +37,7 @@ export async function POST(req: NextRequest) {
     
     // Parse request body
     const body = await req.json()
-    const { gameId, amount } = body // Removed telegramId from body
+    const { gameId, amount } = body
     
     if (!gameId) {
       return createErrorResponse('Game ID is required', HttpStatus.BAD_REQUEST);
@@ -70,10 +46,7 @@ export async function POST(req: NextRequest) {
       return createErrorResponse('Valid bid amount is required', HttpStatus.BAD_REQUEST);
     }
 
-    // --- REMOVED User Lookup by Telegram ID --- 
-    // We now have the authenticated userId from the session
-
-    // Create the bid using the authenticated userId
+    // Create the bid using the authenticated userId from NextAuth session
     const bidResult = await createBid(gameId, amount, userId)
     
     if (!bidResult.success) {
