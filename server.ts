@@ -107,40 +107,60 @@ app.prepare().then(() => {
   // Handle new WebSocket connections
   wss.on('connection', (ws: WebSocketWithId, req) => {
     const remoteAddress = req.socket.remoteAddress || 'Unknown IP';
-    console.log(`[ws:local] Client attempting connection from ${remoteAddress}`);
+    console.log(`[ws:local] ---- Connection Handler Start ---- Client: ${remoteAddress}`); // Log entry
 
-    ws.on('message', (data) => {
-      try {
-        const message = JSON.parse(data.toString());
-        console.log(`[ws:local] Received message from ${remoteAddress}. Type: ${message?.type}, ChannelId: ${message?.channelId}`);
-        if (message.type === 'register' && message.channelId) {
-          registerLocalClient(message.channelId, ws); // Use local register
-          ws.send(JSON.stringify({ type: 'registered', channelId: message.channelId }));
-        } else {
-          console.warn(`[ws:local] Received unknown message type or format from ${remoteAddress}: ${data.toString().substring(0,100)}...`);
+    try { // Add try block
+      console.log(`[ws:local] Attaching 'message' listener for ${remoteAddress}...`);
+      ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          console.log(`[ws:local] Received message from ${remoteAddress}. Type: ${message?.type}, ChannelId: ${message?.channelId}`);
+          if (message.type === 'register' && message.channelId) {
+            registerLocalClient(message.channelId, ws); // Use local register
+            ws.send(JSON.stringify({ type: 'registered', channelId: message.channelId }));
+          } else {
+            console.warn(`[ws:local] Received unknown message type or format from ${remoteAddress}: ${data.toString().substring(0,100)}...`);
+          }
+        } catch (error: any) {
+          console.error(`[ws:local] Error parsing message from ${remoteAddress}: ${error.message}. Data: ${data.toString().substring(0, 100)}...`);
         }
-      } catch (error: any) {
-        console.error(`[ws:local] Error parsing message from ${remoteAddress}: ${error.message}. Data: ${data.toString().substring(0, 100)}...`);
-      }
-    });
+      });
+      console.log(`[ws:local] Attached 'message' listener for ${remoteAddress}.`);
 
-    ws.on('close', (code, reason) => {
-      const channelId = ws.channelId || 'UNKNOWN';
-      const reasonString = reason.toString('utf-8');
-      console.log(`[ws:local] Client disconnected. ChannelId: ${channelId}, Code: ${code}, Reason: ${reasonString}, Remote: ${remoteAddress}`);
-      if (ws.channelId) {
-        unregisterLocalClient(ws.channelId); 
-      }
-    });
+      console.log(`[ws:local] Attaching 'close' listener for ${remoteAddress}...`);
+      ws.on('close', (code, reason) => {
+        const channelId = ws.channelId || 'UNKNOWN';
+        const reasonString = reason.toString('utf-8');
+        console.log(`[ws:local] Client disconnected. ChannelId: ${channelId}, Code: ${code}, Reason: ${reasonString}, Remote: ${remoteAddress}`);
+        if (ws.channelId) {
+          unregisterLocalClient(ws.channelId);
+        }
+      });
+      console.log(`[ws:local] Attached 'close' listener for ${remoteAddress}.`);
 
-    ws.on('error', (error) => {
-      const channelId = ws.channelId || 'UNKNOWN';
-      console.error(`[ws:local] WebSocket error for client. ChannelId: ${channelId}, Error: ${error.message}, Remote: ${remoteAddress}`, error);
-      if (ws.channelId) {
-        unregisterLocalClient(ws.channelId); 
-      }
-      ws.terminate();
-    });
+      console.log(`[ws:local] Attaching 'error' listener for ${remoteAddress}...`);
+      ws.on('error', (error) => {
+        const channelId = ws.channelId || 'UNKNOWN';
+        console.error(`[ws:local] WebSocket error for client. ChannelId: ${channelId}, Error: ${error.message}, Remote: ${remoteAddress}`, error);
+        if (ws.channelId) {
+          unregisterLocalClient(ws.channelId);
+        }
+        ws.terminate(); // Terminate on error
+      });
+      console.log(`[ws:local] Attached 'error' listener for ${remoteAddress}.`);
+
+      console.log(`[ws:local] ---- Connection Handler End ---- Client: ${remoteAddress}`); // Log exit
+
+    } catch (connectionHandlerError: unknown) { // Add catch block
+       const message = connectionHandlerError instanceof Error ? connectionHandlerError.message : 'Unknown connection handler error';
+       console.error(`[ws:local] !!! CRITICAL ERROR IN 'connection' HANDLER for ${remoteAddress}: ${message}`, connectionHandlerError);
+       // Attempt to close the socket if possible, as setup failed
+       try {
+         ws.terminate();
+       } catch (terminateError) {
+         console.error(`[ws:local] Error terminating socket after connection handler failure for ${remoteAddress}:`, terminateError);
+       }
+    }
   });
 
   // Start listening
