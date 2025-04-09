@@ -19,24 +19,21 @@ export async function POST() {
     const verificationCode = generateVerificationCode();
     const codeExpiresMinutes = 10; 
     const expires = addMinutes(new Date(), codeExpiresMinutes);
-    const channelId = nanoid(16); 
 
     // Create a record in the database to store the verification code
     const pendingVerification = await prisma.pendingVerification.create({
       data: {
         verificationCode,
         expires,
-        channelId,
         isVerified: false
       }
     });
 
-    console.log(`Generated verification code: ${verificationCode}, channelId: ${channelId}, expires: ${expires}`);
+    console.log(`Generated verification code: ${verificationCode}, expires: ${expires}`);
 
     return NextResponse.json({
       success: true,
       verificationCode,
-      channelId,
     });
   } catch (error) {
     console.error('Error generating verification code:', error);

@@ -143,23 +143,21 @@ async function findOrCreateUserByTelegram(telegramId: string, telegramContext?: 
 }
 
 // Define return type for the service function
-// Replace sessionId with nextAuthToken
 interface LinkResult {
     success: boolean;
-    reason?: 'invalid' | 'already_verified' | 'expired' | 'no_channel' | 'db_error' | 'internal_error' | 'token_error';
+    reason?: 'invalid' | 'already_verified' | 'expired' | 'db_error' | 'internal_error' | 'token_error';
     pendingVerificationId?: string; // Pass this back to generate token
-    channelId?: string | null;
     user?: {
       id: string;
       telegramFirstName?: string | null;
       telegramUsername?: string | null;
     };
-    nextAuthToken?: string | null; // ADDED: The temporary token for NextAuth sign-in
+    nextAuthToken?: string | null; // The temporary token for NextAuth sign-in
 }
 
 /**
  * Finds a pending verification by code, links the telegramId TO A USER,
- * generates a temporary NextAuth token, and returns info needed by the webhook.
+ * generates a temporary NextAuth token, and returns status.
  * @param code Verification code sent by the user
  * @param telegramId Telegram ID of the user sending the code
  * @param telegramContext Optional context to get user's name/username
@@ -194,10 +192,6 @@ export async function linkTelegramToVerificationCode(
       }
       return { success: false, reason: 'expired' };
     }
-    if (!verification.channelId) {
-        logApiError('telegram-link-code', new Error('Missing channelId in PendingVerification'), { code });
-        return { success: false, reason: 'no_channel' };
-    }
 
     // --- Link to User --- 
     const user = await findOrCreateUserByTelegram(telegramId, telegramContext);
@@ -222,8 +216,7 @@ export async function linkTelegramToVerificationCode(
         // Provide a specific reason for token generation failure
         return { 
             success: false, 
-            reason: 'token_error', 
-            channelId: verification.channelId, // Still need channelId to potentially notify client of error
+            reason: 'token_error',
             user: { id: user.id, telegramFirstName: user.telegramFirstName, telegramUsername: user.telegramUsername } 
         };
     }
@@ -236,12 +229,11 @@ export async function linkTelegramToVerificationCode(
         telegramUsername: user.telegramUsername,
     };
 
-    // Return success and data including the NextAuth token
+    // Return success with user info and token (we no longer need channelId)
     return {
         success: true,
-        channelId: verification.channelId,
         user: userInfo,
-        nextAuthToken: nextAuthToken, // Return the new token
+        nextAuthToken: nextAuthToken,
     };
 
   } catch (error) {

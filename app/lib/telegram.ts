@@ -11,7 +11,6 @@ import {
 } from '@/app/services/telegramService';
 import { logApiError } from '@/app/lib/api-utils';
 import { timingSafeEqual } from 'crypto'; // Ensure imported
-import { pusherServer } from '@/app/lib/pusher-server'; // Import pusher server utility
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -26,7 +25,6 @@ const BotMessages = {
   VERIFICATION_INVALID: '❌ Неверный код верификации.',
   VERIFICATION_ALREADY: '❌ Этот код уже был использован или ваш аккаунт уже верифицирован.',
   VERIFICATION_EXPIRED: '❌ Этот код верификации истёк. Пожалуйста, сгенерируйте новый код на сайте.',
-  VERIFICATION_NO_CHANNEL: '❌ Ошибка верификации (отсутствует канал). Попробуйте снова или обратитесь в поддержку.',
   GENERIC_ERROR: 'Произошла ошибка. Пожалуйста, попробуйте еще раз.',
 };
 // --- End Bot Messages ---
@@ -116,7 +114,6 @@ function configureBot() {
             case 'invalid': replyMessage = BotMessages.VERIFICATION_INVALID; break;
             case 'already_verified': replyMessage = BotMessages.VERIFICATION_ALREADY; break;
             case 'expired': replyMessage = BotMessages.VERIFICATION_EXPIRED; break;
-            case 'no_channel': replyMessage = BotMessages.VERIFICATION_NO_CHANNEL; break;
             default: 
               replyMessage = BotMessages.GENERIC_ERROR;
               logApiError('telegram-verification-failure', new Error(`Verification failed with reason: ${verificationResult.reason}`), { telegramId: telegramId, code: messageText, reason: verificationResult.reason });
@@ -124,52 +121,6 @@ function configureBot() {
           }
         }
         await ctx.reply(replyMessage); 
-
-        // --- Trigger Pusher Notification (Only on SUCCESS) --- 
-        if (verificationResult.success && verificationResult.channelId && verificationResult.nextAuthToken && verificationResult.user) {
-          console.log(`[Telegram Handler] Verification success. Triggering Pusher for Channel: ${verificationResult.channelId}`);
-          
-          const pusherEvent = 'session-created'; // Event name must match client
-          const pusherChannel = `${verificationResult.channelId}`; // Use public channel (no private- prefix)
-          const pusherData = { 
-              user: { 
-                  id: verificationResult.user.id, 
-                  telegramFirstName: verificationResult.user.telegramFirstName, 
-                  telegramUsername: verificationResult.user.telegramUsername, 
-              }, 
-              nextAuthToken: verificationResult.nextAuthToken
-          };
-          
-          try {
-            if (!pusherServer) {
-                 throw new Error('Pusher server instance is not available.');
-            }
-             // Use await here as trigger is async
-             await pusherServer.trigger(pusherChannel, pusherEvent, pusherData);
-             console.log(`[Telegram Handler] Successfully triggered Pusher event '${pusherEvent}' on channel ${pusherChannel}`);
-
-          } catch (pusherError: unknown) {
-              const message = pusherError instanceof Error ? pusherError.message : 'Unknown Pusher trigger error';
-              console.error(`[Telegram Handler] Error triggering Pusher event '${pusherEvent}' on channel ${pusherChannel}:`, message, pusherError);
-              logApiError('telegram-pusher-notification-error', pusherError, { 
-                  channelId: verificationResult.channelId, 
-                  pusherChannel: pusherChannel, 
-                  pusherEvent: pusherEvent 
-              });
-              // Decide if you need to inform the user about the notification failure
-              // Maybe reply differently in Telegram?
-          }
-        } else if (verificationResult.success) {
-             console.warn(`[Telegram Handler] Verification successful but missing data for Pusher notification (e.g., token). Result:`, verificationResult);
-             logApiError('telegram-pusher-missing-data', new Error('Missing data after successful verification'), { 
-                 channelId: verificationResult.channelId, 
-                 userId: verificationResult.user?.id, 
-                 hasUser: !!verificationResult.user, 
-                 hasNextAuthToken: !!verificationResult.nextAuthToken 
-             });
-        }
-        // --- End Pusher Notification Block ---
-
         return; 
       }
       

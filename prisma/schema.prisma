@@ -59,11 +59,11 @@ model PendingVerification {
   id                String    @id @default(cuid())
   verificationCode  String    @unique // The 6-char code shown to user (sent to Telegram bot)
   expires           DateTime  // When the code/token expires
-  channelId         String?   @unique // Unique ID for Pusher communication channel
+  channelId         String?   // Legacy field for Pusher (kept for backwards compatibility)
   isVerified        Boolean   @default(false) // Has the code been verified via Telegram?
   telegramId        String?   // Which Telegram user verified it?
   verifiedUserId    String?   // Which internal User ID it was linked to
-  verificationToken String?   @unique // ADDED: Temporary token for next-auth credentials sign-in
+  verificationToken String?   @unique // Temporary token for next-auth credentials sign-in
   createdAt         DateTime  @default(now())
 }
 

@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 import { Loader2 } from 'lucide-react';
-import { getPusherClient } from '@/app/lib/pusher-client';
-import type { Channel } from 'pusher-js';
 import { signIn } from 'next-auth/react';
 import { toast } from 'react-hot-toast';
 import { apiClient, ApiError } from '@/app/utils/api-client';
@@ -14,137 +12,126 @@ interface TelegramLoginProps {
   callbackUrl?: string;
 }
 
-interface SessionCreatedData {
-  nextAuthToken?: string;
+// Interface for verification status response
+interface VerificationStatusResponse {
+  success: boolean;
+  verified?: boolean;
+  nextAuthToken?: string | null;
+  status?: string;
   error?: string;
-  user?: { 
-    id: string;
-    telegramFirstName?: string | null;
-    telegramUsername?: string | null;
-  };
 }
 
 export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps) {
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
-  const [channelId, setChannelId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('callbackUrl') || callbackUrl || '/';
-  const pusherChannelRef = useRef<Channel | null>(null);
 
+  // Clean up polling interval on unmount
   useEffect(() => {
     return () => {
-      if (pusherChannelRef.current && channelId) {
-        console.log(`[Pusher] Unsubscribing from channel: ${channelId}`);
-        getPusherClient().unsubscribe(`${channelId}`); // Use non-private channel
-        pusherChannelRef.current = null;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [channelId]);
+  }, []);
 
+  // Set up polling when verification code is available and status is pending
   useEffect(() => {
-    if (channelId && verificationStatus === 'pending') {
-      if (pusherChannelRef.current) {
-        console.warn(`[Pusher] Attempted to subscribe multiple times to ${channelId}. Ignoring.`);
-        return;
+    if (verificationCode && verificationStatus === 'pending' && !isSigningIn) {
+      // Clear any existing interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
       }
 
-      const pusher = getPusherClient();
-      if (!pusher || !pusher.subscribe) {
-        console.error('[Pusher] Pusher client not available or invalid.');
-        setError('Ошибка инициализации системы уведомлений (Pusher).');
-        setVerificationStatus('error');
-        return;
-      }
+      // Start polling for verification status
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          console.log(`[Polling] Checking verification status for code: ${verificationCode}`);
+          const response = await fetch(`/api/auth/telegram/verification-status?code=${verificationCode}`);
+          const data: VerificationStatusResponse = await response.json();
 
-      const pusherChannelName = `${channelId}`;
-      console.log(`[Pusher] Subscribing to channel: ${pusherChannelName}`);
-
-      try {
-        pusherChannelRef.current = pusher.subscribe(pusherChannelName);
-
-        pusherChannelRef.current.bind('session-created', async (data: SessionCreatedData) => {
-          console.log('[Pusher] Event \'session-created\' received:', data);
-
-          if (data.nextAuthToken) {
-            console.log('[TelegramLogin] Received NextAuth token via Pusher. Attempting sign in...');
-            setIsSigningIn(true);
-            setError(null);
-
-            try {
-              const signInResponse = await signIn('credentials', {
-                verificationToken: data.nextAuthToken,
-                redirect: false,
-              });
-
-              setIsSigningIn(false);
-
-              if (signInResponse?.error) {
-                console.error('[NextAuth SignIn Error]:', signInResponse.error);
-                setError(`Ошибка входа: ${signInResponse.error === 'CredentialsSignin' ? 'Неверный или истекший токен верификации.' : signInResponse.error}`);
-                setVerificationStatus('error');
-                toast.error('Ошибка входа. Попробуйте снова.');
-              } else if (signInResponse?.ok) {
-                console.log('[NextAuth SignIn Success]');
-                setVerificationStatus('success');
-                toast.success('Аккаунт успешно связан и вход выполнен!');
-
-                router.refresh();
-
-                console.log(`[TelegramLogin] Navigating to: ${returnUrl}`);
-                if (returnUrl !== '/link-telegram') {
-                  router.push(returnUrl);
-                }
-
-                if (pusherChannelRef.current) {
-                  console.log(`[Pusher] Unsubscribing from channel ${pusherChannelName} after success.`);
-                  pusher.unsubscribe(pusherChannelName);
-                  pusherChannelRef.current = null;
-                }
-              } else {
-                console.warn('[NextAuth SignIn] Unexpected response:', signInResponse);
-                setError('Произошла неожиданная ошибка при входе.');
-                setVerificationStatus('error');
-              }
-
-            } catch (signInError) {
-              setIsSigningIn(false);
-              console.error('[TelegramLogin] Critical error during signIn call:', signInError);
-              setError('Критическая ошибка при попытке входа.');
+          if (!data.success) {
+            if (data.status === 'expired') {
+              console.warn('[Polling] Verification code expired');
+              setError('Код верификации истек. Пожалуйста, получите новый код.');
               setVerificationStatus('error');
-              toast.error('Критическая ошибка входа.');
+              clearInterval(pollingIntervalRef.current!);
+            } else {
+              console.error('[Polling] Error checking verification status:', data.error);
             }
-          } else if (data.error) {
-            console.error('[Pusher] Received error message via Pusher:', data.error);
-            setError(data.error || 'Ошибка верификации на сервере (Pusher).');
-            setVerificationStatus('error');
-            toast.error(data.error || 'Ошибка верификации (Pusher).');
-          } else {
-            console.warn('[Pusher] Received unknown data structure on session-created event:', data);
+            return;
           }
-        });
 
-        pusherChannelRef.current.bind('pusher:subscription_succeeded', () => {
-          console.log(`[Pusher] Successfully subscribed to ${pusherChannelName}`);
-        });
+          // If verified, proceed with sign-in
+          if (data.verified && data.nextAuthToken) {
+            console.log('[Polling] Verification successful, proceeding with sign-in');
+            clearInterval(pollingIntervalRef.current!);
+            
+            // Sign in with the NextAuth token
+            setIsSigningIn(true);
+            handleSignIn(data.nextAuthToken);
+          }
+        } catch (err) {
+          console.error('[Polling] Error fetching verification status:', err);
+        }
+      }, 2000); // Poll every 2 seconds
+    }
 
-        pusherChannelRef.current.bind('pusher:subscription_error', (status: { status: number; error?: undefined }) => {
-          console.error(`[Pusher] Subscription error for ${pusherChannelName}:`, status);
-          setError(`Ошибка подписки на канал уведомлений (${status.status}). Проверьте конфигурацию.`);
-          setVerificationStatus('error');
-        });
+    return () => {
+      if (pollingIntervalRef.current && (verificationStatus !== 'pending' || isSigningIn)) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [verificationCode, verificationStatus, isSigningIn]);
 
-      } catch (subError) {
-        console.error(`[Pusher] Error subscribing to channel ${pusherChannelName}:`, subError);
-        setError('Ошибка подписки на канал уведомлений.');
+  // Handle sign-in with NextAuth token
+  const handleSignIn = async (nextAuthToken: string) => {
+    setIsSigningIn(true);
+    setError(null);
+
+    try {
+      const signInResponse = await signIn('credentials', {
+        verificationToken: nextAuthToken,
+        redirect: false,
+      });
+
+      setIsSigningIn(false);
+
+      if (signInResponse?.error) {
+        console.error('[NextAuth SignIn Error]:', signInResponse.error);
+        setError(`Ошибка входа: ${signInResponse.error === 'CredentialsSignin' ? 'Неверный или истекший токен верификации.' : signInResponse.error}`);
+        setVerificationStatus('error');
+        toast.error('Ошибка входа. Попробуйте снова.');
+      } else if (signInResponse?.ok) {
+        console.log('[NextAuth SignIn Success]');
+        setVerificationStatus('success');
+        toast.success('Аккаунт успешно связан и вход выполнен!');
+
+        router.refresh();
+
+        console.log(`[TelegramLogin] Navigating to: ${returnUrl}`);
+        if (returnUrl !== '/link-telegram') {
+          router.push(returnUrl);
+        }
+      } else {
+        console.warn('[NextAuth SignIn] Unexpected response:', signInResponse);
+        setError('Произошла неожиданная ошибка при входе.');
         setVerificationStatus('error');
       }
+    } catch (signInError) {
+      setIsSigningIn(false);
+      console.error('[TelegramLogin] Critical error during signIn call:', signInError);
+      setError('Критическая ошибка при попытке входа.');
+      setVerificationStatus('error');
+      toast.error('Критическая ошибка входа.');
     }
-  }, [channelId, verificationStatus, router, returnUrl, pusherChannelRef]);
+  };
   
   const handleGenerateCodeClick = async () => {
     if (isLoading || isSigningIn) return;
@@ -154,21 +141,16 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       setIsSigningIn(false);
       setError(null);
       setVerificationCode(null);
-      setChannelId(null);
       setVerificationStatus('idle');
       
-      if (pusherChannelRef.current && channelId) {
-        console.log(`[Pusher] Unsubscribing from previous channel: ${channelId}`);
-        getPusherClient().unsubscribe(`${channelId}`);
-        pusherChannelRef.current = null;
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
       }
-      
-      setChannelId(null);
       
       const result = await apiClient.post<{
          success: boolean; 
          verificationCode?: string; 
-         channelId?: string; 
          error?: string 
       }>('/api/auth/telegram');
       
@@ -177,7 +159,6 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       }
       
       setVerificationCode(result.verificationCode || null);
-      setChannelId(result.channelId || null);
       setVerificationStatus('pending');
       
     } catch (err: unknown) {
