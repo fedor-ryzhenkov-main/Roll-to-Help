@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
 import prisma from './db';
 import { formatBidderCreatureName } from '@/app/utils/creatureNames';
-import { Game, Bid } from '@/app/types';
+import { Game, Bid, User } from '@/app/types';
 
 export function formatDate(date: Date): string {
   return format(new Date(date), 'EEEE, MMMM do, yyyy \'at\' h:mm a')
@@ -13,20 +13,34 @@ export function formatDate(date: Date): string {
  * @param gameId The ID of the game to fetch
  * @returns Game object with raw bids array or null if not found.
  */
-export async function getGameWithBids(gameId: string): Promise<(Game & { bids: (Bid & { user: any })[] }) | null> {
+export async function getGameWithBids(gameId: string): Promise<(Game & { bids: (Bid & { user: User })[] }) | null> {
   console.log(`Fetching raw game data for gameId: ${gameId}`);
   
   const game = await prisma.game.findUnique({
     where: { id: gameId },
     include: {
-      event: true, // Include event details
-      bids: { // Include bids related to the game
+      event: true, 
+      bids: { 
         orderBy: [
-          { amount: 'desc' }, // Order by amount descending
-          { createdAt: 'asc' } // Then by creation time ascending
+          { amount: 'desc' }, 
+          { createdAt: 'asc' } 
         ],
         include: {
-          user: true // Include all user fields
+          user: { 
+            // Select ALL fields required by the User type in app/types.ts
+            select: {
+              id: true,
+              isAdmin: true,
+              image: true,
+              createdAt: true,
+              updatedAt: true,
+              telegramId: true,
+              telegramUsername: true,
+              telegramFirstName: true,
+              telegramLastName: true, 
+              telegramPhotoUrl: true,
+            }
+          } 
         }
       }
     }
@@ -34,29 +48,12 @@ export async function getGameWithBids(gameId: string): Promise<(Game & { bids: (
 
   if (!game) {
     console.log(`Game with ID ${gameId} not found.`);
-    return null; // Return null if game not found
+    return null; 
   }
 
-  // Log minimal info for confirmation
   console.log(`Found game: ${game.id}, Name: ${game.name}, Bids count: ${game.bids.length}`);
-  console.log(`DEBUG - System: "${game.system}", Genre: "${game.genre}"`); // Debug log for system and genre
   
-  // Return the raw game object with bids
-  // Ensure bids have the necessary userId field for the client
-  const processedBids = game.bids.map(bid => ({
-    ...bid,
-    // Ensure a consistent userId field for the client, preferring bid.userId
-    userId: bid.userId || bid.user?.id || 'anonymous'
-  }));
-
-  const result = {
-    ...game,
-    bids: processedBids
-  };
-  
-  console.log(`DEBUG - Return object system: "${result.system}", genre: "${result.genre}"`); // Debug log for returned object
-  
-  return result;
+  return game as (Game & { bids: (Bid & { user: User })[] });
 }
 
 /**

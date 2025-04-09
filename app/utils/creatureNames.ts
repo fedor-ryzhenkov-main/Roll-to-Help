@@ -8,7 +8,6 @@
  * This helps maintain privacy while making bids identifiable
  */
 
-// List of TTRPG creature names in Russian
 const CREATURE_NAMES = [
   'Гоблин', 'Орк', 'Скелет', 'Зомби', 'Вампир',
   'Оборотень', 'Тролль', 'Огр', 'Дракон', 'Элементаль',
@@ -19,12 +18,6 @@ const CREATURE_NAMES = [
   'Медуза', 'Василиск', 'Виверна', 'Феникс', 'Единорог',
   'Гоблин-шаман', 'Орк-вождь', 'Рыцарь смерти', 'Призрак', 'Банши',
   'Энт', 'Дриада', 'Гаргулья', 'Имп', 'Суккуб'
-];
-
-// Adjectives in Russian for additional variety
-const ADJECTIVES = [
-  'Быстрый', 'Умный', 'Храбрый', 'Хитрый', 'Дружелюбный',
-  'Загадочный', 'Весёлый', 'Спокойный', 'Ловкий', 'Яркий'
 ];
 
 /**
@@ -49,7 +42,6 @@ function hashString(str: string, salt = 1): number {
  * @returns A random but consistent creature name
  */
 export function getCreatureNameForUser(userId: string): string {
-  // Use hash function to get consistent index for the same user ID
   const creatureIndex = hashString(userId) % CREATURE_NAMES.length;
   return CREATURE_NAMES[creatureIndex];
 }

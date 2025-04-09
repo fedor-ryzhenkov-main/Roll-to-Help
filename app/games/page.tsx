@@ -8,38 +8,27 @@ export const dynamic = 'force-dynamic';
 
 // Fetch active games from the database
 async function getActiveGames() {
-  // ADDED: Log entry into the function
-  console.log('[getActiveGames] ENTERING FUNCTION - Production Test');
-  console.log('[getActiveGames] Fetching active games (checking for events with isActive: true)...');
   try {
-    const now = new Date();
-    // ADDED: Log before the query
     console.log('[getActiveGames] Executing prisma.game.findMany...');
     const games = await prisma.game.findMany({
       where: {
         event: {
           isActive: true,
-          // Removed the endDate filter to show all games from active events
-          // endDate: {
-          //   gt: now
-          // }
         },
       },
       include: {
-        event: true, // Include event details if needed later
+        event: true, 
       },
       orderBy: {
-        name: "asc", // <-- Change 'title' to 'name'
+        name: "asc", 
       },
     });
-    // ADDED: Log after the query with count
-    console.log(`[getActiveGames] Prisma query finished. Found ${games.length} active games.`);
     return games;
-  } catch (error: any) {
-    // Ensure error logging captures details
-    console.error('[getActiveGames] ERROR fetching games:', error.message, error.stack);
-    logApiError('get-active-games', error); // Assuming logApiError is available/importable here, adjust if not
-    return []; // Return empty array on error to prevent breaking the page
+  } catch (error) {
+    console.error('[getActiveGames] ERROR fetching games:', error instanceof Error ? error.message : 'Unknown error', 
+      error instanceof Error ? error.stack : '');
+    logApiError('get-active-games', error); 
+    return []; 
   }
 }
 
@@ -89,6 +78,3 @@ export default async function GamesPage() {
     </div>
   );
 }
-
-// Remove ISR revalidation to force SSR
-// export const revalidate = 3600; 

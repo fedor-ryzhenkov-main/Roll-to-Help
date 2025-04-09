@@ -3,10 +3,10 @@
  * Centralized setup for the Telegram bot
  */
 
-import { Telegraf, Telegram, Context } from 'telegraf';
-// import { BOT_MESSAGES } from '@/app/config/constants'; // Remove import
+import { Telegraf, Telegram } from 'telegraf';
+import { Update } from 'telegraf/types';
+
 import { 
-  getUserByTelegramId, 
   linkTelegramToVerificationCode
 } from '@/app/services/telegramService';
 import { logApiError } from '@/app/lib/api-utils';
@@ -27,7 +27,6 @@ const BotMessages = {
   VERIFICATION_EXPIRED: '❌ Этот код верификации истёк. Пожалуйста, сгенерируйте новый код на сайте.',
   VERIFICATION_NO_CHANNEL: '❌ Ошибка верификации (отсутствует канал). Попробуйте снова или обратитесь в поддержку.',
   GENERIC_ERROR: 'Произошла ошибка. Пожалуйста, попробуйте еще раз.',
-  // Add other messages as needed
 };
 // --- End Bot Messages ---
 
@@ -51,16 +50,18 @@ function getBotInstance(): Telegraf | null {
       console.log('[Telegram] Received SIGINT, attempting to stop bot...');
       try {
         botInstance?.stop('SIGINT');
-      } catch (stopErr: any) {
-        console.error('[Telegram] Error during bot stop (SIGINT):', stopErr.message);
+      } catch (stopErr: unknown) {
+        const message = stopErr instanceof Error ? stopErr.message : 'Unknown shutdown error';
+        console.error('[Telegram] Error during bot stop (SIGINT):', message);
       }
     });
     process.once('SIGTERM', () => {
       console.log('[Telegram] Received SIGTERM, attempting to stop bot...');
       try {
         botInstance?.stop('SIGTERM');
-      } catch (stopErr: any) {
-        console.error('[Telegram] Error during bot stop (SIGTERM):', stopErr.message);
+      } catch (stopErr: unknown) {
+        const message = stopErr instanceof Error ? stopErr.message : 'Unknown shutdown error';
+        console.error('[Telegram] Error during bot stop (SIGTERM):', message);
       }
     });
     
@@ -140,8 +141,9 @@ function configureBot() {
                  console.error('[Telegram Handler] CRITICAL: global.sendWsMessage function not found!');
                  logApiError('telegram-ws-notification-global-missing', new Error(`global.sendWsMessage not defined`), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user.id });
             }
-          } catch (wsError: any) {
-              console.error(`[Telegram Handler] Error calling global.sendWsMessage:`, wsError);
+          } catch (wsError: unknown) {
+              const message = wsError instanceof Error ? wsError.message : 'Unknown WS error';
+              console.error(`[Telegram Handler] Error calling global.sendWsMessage:`, message, wsError);
               logApiError('telegram-ws-notification-global-error', wsError, { channelId: verificationResult.channelId });
           }
         } else if (verificationResult.success) {
@@ -154,7 +156,7 @@ function configureBot() {
       }
       
       await ctx.reply(BotMessages.UNKNOWN_COMMAND);
-    } catch (error) {
+    } catch (error: unknown) {
       logApiError('telegram-bot:text', error);
       await ctx.reply(BotMessages.GENERIC_ERROR);
     }
@@ -203,7 +205,7 @@ async function sendTelegramMessage(
 /**
  * Handles incoming webhook updates.
  */
-async function handleWebhookUpdate(requestBody: any, secretTokenHeader?: string): Promise<boolean> {
+async function handleWebhookUpdate(requestBody: Update, secretTokenHeader?: string): Promise<boolean> {
    const bot = getBotInstance();
     if (!bot) {
         console.error('[Telegram Handler] Cannot handle update: Bot instance not available.');
@@ -234,8 +236,9 @@ async function handleWebhookUpdate(requestBody: any, secretTokenHeader?: string)
         await bot.handleUpdate(requestBody);
         console.log('[Telegram Handler] Webhook update processed by bot.');
         return true;
-    } catch (error: any) {
-        console.error('[Telegram Handler] Error handling webhook update within bot:', error.message);
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown webhook handling error';
+        console.error('[Telegram Handler] Error handling webhook update within bot:', message);
         logApiError('handle-telegram-webhook-internal', error);
         return false;
     }

@@ -33,14 +33,14 @@ export class ApiClient {
   /**
    * Make a secure GET request
    */
-  async get<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
+  async get<T = unknown>(endpoint: string, options: FetchOptions = {}): Promise<T> {
     return this.request<T>('GET', endpoint, options);
   }
 
   /**
    * Make a secure POST request with CSRF protection
    */
-  async post<T = any>(endpoint: string, data?: any, options: FetchOptions = {}): Promise<T> {
+  async post<T = unknown>(endpoint: string, data?: unknown, options: FetchOptions = {}): Promise<T> {
     return this.request<T>('POST', endpoint, {
       ...options,
       body: data ? JSON.stringify(data) : undefined,
@@ -50,7 +50,7 @@ export class ApiClient {
   /**
    * Make a secure PUT request with CSRF protection
    */
-  async put<T = any>(endpoint: string, data?: any, options: FetchOptions = {}): Promise<T> {
+  async put<T = unknown>(endpoint: string, data?: unknown, options: FetchOptions = {}): Promise<T> {
     return this.request<T>('PUT', endpoint, {
       ...options,
       body: data ? JSON.stringify(data) : undefined,
@@ -60,14 +60,14 @@ export class ApiClient {
   /**
    * Make a secure DELETE request with CSRF protection
    */
-  async delete<T = any>(endpoint: string, options: FetchOptions = {}): Promise<T> {
+  async delete<T = unknown>(endpoint: string, options: FetchOptions = {}): Promise<T> {
     return this.request<T>('DELETE', endpoint, options);
   }
 
   /**
    * Make a generic secure request with CSRF protection
    */
-  private async request<T = any>(
+  private async request<T = unknown>(
     method: string,
     endpoint: string,
     options: FetchOptions = {}
@@ -93,16 +93,29 @@ export class ApiClient {
       // Parse response
       const data = await this.parseResponse(response);
       
-      // Handle API error responses
       if (!response.ok) {
+        let errorMessage = 'An unexpected error occurred';
+        let errorDetails: unknown = null;
+
+        // Check if data is a non-null object before accessing properties
+        if (typeof data === 'object' && data !== null) {
+          // Use type assertion ONLY after checking, or access via index
+          const errorObj = (data as Record<string, unknown>)['error'];
+          if (typeof errorObj === 'object' && errorObj !== null) {
+             errorMessage = (errorObj as Record<string, unknown>)['message'] as string || errorMessage;
+             errorDetails = (errorObj as Record<string, unknown>)['details'];
+          }
+        }
+
         throw new ApiError(
-          data?.error?.message || 'An unexpected error occurred',
+          errorMessage,
           response.status,
-          data?.error?.details
+          errorDetails
         );
       }
 
-      return data;
+      // Return data as T (caller handles assertion)
+      return data as T;
     } catch (error) {
       // Rethrow ApiErrors
       if (error instanceof ApiError) {
@@ -164,18 +177,21 @@ export class ApiClient {
   /**
    * Parse the response based on content type
    */
-  private async parseResponse(response: Response): Promise<any> {
+  private async parseResponse(response: Response): Promise<unknown> {
     const contentType = response.headers.get('Content-Type');
     
     if (contentType?.includes('application/json')) {
-      return response.json();
+      // Handle potential empty JSON response
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
     }
     
     if (contentType?.includes('text/')) {
       return response.text();
     }
     
-    return response.blob();
+    // Return Blob for other types, or null if no content
+    return response.status !== 204 ? response.blob() : null;
   }
 }
 
@@ -184,9 +200,9 @@ export class ApiClient {
  */
 export class ApiError extends Error {
   status: number;
-  details?: any;
+  details?: unknown;
 
-  constructor(message: string, status: number, details?: any) {
+  constructor(message: string, status: number, details?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;

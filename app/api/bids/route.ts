@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createBid } from '@/app/services/bidService'
 import { createSuccessResponse, createErrorResponse, HttpStatus } from '@/app/lib/api-utils'
-import { validateCsrfToken, applyRateLimit } from '@/app/lib/api-middleware'
+import { validateCsrfToken } from '@/app/lib/api-middleware'
 import prisma from '@/app/lib/db'
 
 
@@ -49,10 +49,11 @@ export async function POST(req: NextRequest) {
     console.log(`Bid request authenticated for userId: ${userId}`);
     // --------------------------
     
-    // Apply rate limiting 
-    // ... (Consider if rate limit should be user-specific or IP-based)
+    // Removed rate limiting application
+    /*
     const rateLimit = applyRateLimit(req, { limit: 10, windowMs: 60000 });
     if (!rateLimit.success) return rateLimit.error;
+    */
     
     // Validate CSRF token (If implemented properly)
     const csrfResult = validateCsrfToken(req);

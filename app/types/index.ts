@@ -4,7 +4,6 @@
 
 export interface User {
   id: string
-  isVerified: boolean
   isAdmin: boolean
   telegramId?: string | null
   telegramUsername?: string | null

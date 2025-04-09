@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, ReactNode } from 'react';
+import React, { useState, useRef, useEffect, ReactNode, useCallback } from 'react';
 import { cn } from '@/app/utils/cn';
 
 type TooltipPosition = 'top' | 'right' | 'bottom' | 'left';
@@ -8,7 +8,7 @@ type TooltipPosition = 'top' | 'right' | 'bottom' | 'left';
 export interface TooltipProps {
   content: ReactNode;
   children: ReactNode;
-  position?: TooltipPosition;
+  positionProp?: TooltipPosition;
   delay?: number;
   className?: string;
   contentClassName?: string;
@@ -22,7 +22,7 @@ export interface TooltipProps {
 export const Tooltip: React.FC<TooltipProps> = ({
   content,
   children,
-  position = 'top',
+  positionProp = 'top',
   delay = 300,
   className,
   contentClassName,
@@ -30,7 +30,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   closeOnClick = false,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const targetRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,68 +59,64 @@ export const Tooltip: React.FC<TooltipProps> = ({
     setIsVisible(false);
   };
 
-  // Update tooltip position based on target position
-  const updatePosition = () => {
-    if (!targetRef.current || !tooltipRef.current) return;
+  // Function to calculate and update tooltip position
+  const updatePosition = useCallback(() => {
+    if (!targetRef.current || !tooltipRef.current || !isVisible) return;
 
     const targetRect = targetRef.current.getBoundingClientRect();
     const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
 
-    let x = 0;
-    let y = 0;
+    let newTop = 0, newLeft = 0;
 
-    switch (position) {
+    const effectivePosition = positionProp;
+
+    switch (effectivePosition) {
       case 'top':
-        x = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
-        y = targetRect.top - tooltipRect.height - 8;
+        newTop = targetRect.top + scrollY - tooltipRect.height - 8;
+        newLeft = targetRect.left + scrollX + (targetRect.width / 2) - (tooltipRect.width / 2);
         break;
       case 'right':
-        x = targetRect.right + 8;
-        y = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
-        break;
-      case 'bottom':
-        x = targetRect.left + targetRect.width / 2 - tooltipRect.width / 2;
-        y = targetRect.bottom + 8;
+        newTop = targetRect.top + scrollY + (targetRect.height / 2) - (tooltipRect.height / 2);
+        newLeft = targetRect.right + 8;
         break;
       case 'left':
-        x = targetRect.left - tooltipRect.width - 8;
-        y = targetRect.top + targetRect.height / 2 - tooltipRect.height / 2;
+        newTop = targetRect.top + scrollY + (targetRect.height / 2) - (tooltipRect.height / 2);
+        newLeft = targetRect.left + scrollX - tooltipRect.width - 8;
+        break;
+      case 'bottom':
+      default:
+        newTop = targetRect.bottom + scrollY + 8;
+        newLeft = targetRect.left + scrollX + (targetRect.width / 2) - (tooltipRect.width / 2);
         break;
     }
-
-    // Ensure tooltip stays within viewport bounds
+    
+    // Boundary checks (optional but recommended)
+    // Prevent tooltip from going off-screen
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    newLeft = Math.max(scrollX + 10, Math.min(newLeft, scrollX + viewportWidth - tooltipRect.width - 10));
+    newTop = Math.max(scrollY + 10, Math.min(newTop, scrollY + viewportHeight - tooltipRect.height - 10));
 
-    // Adjust x position if tooltip goes beyond viewport width
-    if (x < 10) x = 10;
-    if (x + tooltipRect.width > viewportWidth - 10) {
-      x = viewportWidth - tooltipRect.width - 10;
-    }
+    setPosition({ top: newTop, left: newLeft });
+  }, [isVisible, positionProp]);
 
-    // Adjust y position if tooltip goes beyond viewport height
-    if (y < 10) y = 10;
-    if (y + tooltipRect.height > viewportHeight - 10) {
-      y = viewportHeight - tooltipRect.height - 10;
-    }
-
-    setCoords({ x, y });
-  };
-
-  // Position the tooltip when it becomes visible
+  // Update position on scroll or resize
   useEffect(() => {
-    if (isVisible) {
-      updatePosition();
-      // Add window resize listener to reposition the tooltip
-      window.addEventListener('resize', updatePosition);
-      window.addEventListener('scroll', updatePosition);
-    }
+    if (!isVisible) return; // Only listen when visible
+    
+    window.addEventListener('scroll', updatePosition, true); 
+    window.addEventListener('resize', updatePosition);
+
+    // Initial position update
+    updatePosition();
 
     return () => {
+      window.removeEventListener('scroll', updatePosition, true);
       window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition);
     };
-  }, [isVisible]);
+  }, [isVisible, updatePosition]); // Include isVisible here as well
 
   // Position classes based on tooltip position
   const positionClasses = {
@@ -157,12 +153,12 @@ export const Tooltip: React.FC<TooltipProps> = ({
           ref={tooltipRef}
           className={cn(
             'fixed z-50 p-2 text-sm text-white bg-gray-800 rounded-md shadow-lg',
-            positionClasses[position],
+            positionClasses[positionProp],
             contentClassName
           )}
           style={{
-            left: `${coords.x}px`,
-            top: `${coords.y}px`,
+            left: `${position.left}px`,
+            top: `${position.top}px`,
             maxWidth,
           }}
           role="tooltip"
@@ -171,7 +167,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
           <span
             className={cn(
               'absolute w-0 h-0 border-4',
-              arrowClasses[position]
+              arrowClasses[positionProp]
             )}
           />
         </div>

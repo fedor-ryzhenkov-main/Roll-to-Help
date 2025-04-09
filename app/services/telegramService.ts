@@ -3,18 +3,20 @@
  * Handles Telegram bot interactions and user verification
  */
 
-import { Telegraf, Context } from 'telegraf';
-import { PrismaClient, User, Game } from '@prisma/client';
+import { PrismaClient, User, Game, Bid } from '@prisma/client';
 import { getCreatureNameForUser } from '@/app/utils/creatureNames';
 import { CURRENCY_SYMBOL } from '@/app/config/constants';
 import { logApiError } from '@/app/lib/api-utils';
-import { bot } from '@/app/lib/telegram';
+import { getBotInstance } from '@/app/lib/telegram';
 import { nanoid } from 'nanoid';
 
 const prisma = new PrismaClient();
-const SESSION_EXPIRY_SECONDS = 60 * 60 * 24 * 7; // 7 days
-// Remove unused Telegraf instance
-// const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN || ''); 
+const SESSION_EXPIRY_SECONDS = 60 * 60 * 24 * 7; 
+
+// Define a type for Game that includes the specific bid info needed
+type GameWithWinningBid = Game & {
+  bids?: (Pick<Bid, 'isWinning' | 'userId' | 'amount'>)[]; // Make bids optional and pick needed fields
+};
 
 /**
  * Get user by Telegram ID
@@ -27,11 +29,11 @@ export async function getUserByTelegramId(telegramId: string) {
 
 /**
  * Formats a message with user's winning bids
- * @param userId User ID to get animal name for
- * @param games List of games the user won
+ * @param user The user object
+ * @param games List of games the user won (must include bids)
  * @returns Formatted message
  */
-export function formatWinningBidsMessage(user: User, games: Game[]): string {
+export function formatWinningBidsMessage(user: User, games: GameWithWinningBid[]): string {
   const creatureName = getCreatureNameForUser(user.id);
   const firstName = user.telegramFirstName || creatureName;
   
@@ -45,7 +47,7 @@ export function formatWinningBidsMessage(user: User, games: Game[]): string {
       message += `   ${game.description}\n`;
     }
     
-    const winningBid = game.bids?.find(bid => bid.isWinning && bid.userId === user.id);
+    const winningBid = game.bids?.find((bid: Pick<Bid, 'isWinning' | 'userId' | 'amount'>) => bid.isWinning && bid.userId === user.id);
     if (winningBid) {
       message += `   Ставка: ${winningBid.amount.toFixed(2)} ${CURRENCY_SYMBOL}\n`;
     }
@@ -61,25 +63,30 @@ export function formatWinningBidsMessage(user: User, games: Game[]): string {
 
 /**
  * Sends notifications to auction winners
+ * IMPORTANT: The caller must ensure the Game objects in winnersMap include the necessary bid information.
  * @param winnersMap Map of telegram IDs to games they won
  */
+// Note: The type here remains Game[], responsibility is on the caller
 export async function notifyAuctionWinners(winnersMap: Record<string, Game[]>): Promise<void> {
+  const bot = getBotInstance();
+  if (!bot) {
+      console.error('[notifyAuctionWinners] Cannot send notification: Bot not initialized.');
+      return;
+  }
+
   for (const [telegramId, games] of Object.entries(winnersMap)) {
     if (!telegramId) continue;
     
     try {
-      // Fetch the user to get their name
-      const user = await prisma.user.findFirst({
-        where: { telegramId }
-      });
-      
+      const user = await prisma.user.findFirst({ where: { telegramId } });
       if (!user) {
         console.error(`User with Telegram ID ${telegramId} not found`);
         continue;
       }
       
-      // Format the message
-      const message = formatWinningBidsMessage(user, games);
+      // Cast needed here because the function expects GameWithWinningBid
+      // This relies on the CALLER providing the correct data structure.
+      const message = formatWinningBidsMessage(user, games as GameWithWinningBid[]); 
       
       // Send the message
       await bot.telegram.sendMessage(telegramId, message, {

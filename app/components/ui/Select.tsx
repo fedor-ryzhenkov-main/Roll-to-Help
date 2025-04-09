@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { FieldError, UseFormRegister } from 'react-hook-form';
+import { FieldError, UseFormRegister, FieldValues, Path } from 'react-hook-form';
 import { cn } from '@/app/utils/cn';
 
 export interface SelectOption {
@@ -10,11 +10,12 @@ export interface SelectOption {
   disabled?: boolean;
 }
 
-export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
-  id: string;
+export interface SelectProps<TFieldValues extends FieldValues> 
+  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
+  id: Path<TFieldValues>;
   label?: string;
   options: SelectOption[];
-  register: UseFormRegister<any>;
+  register: UseFormRegister<TFieldValues>;
   error?: FieldError;
   helpText?: string;
   wrapperClassName?: string;
@@ -22,116 +23,121 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
   selectClassName?: string;
   errorClassName?: string;
   size?: 'sm' | 'md' | 'lg';
-  isSearchable?: boolean;
 }
 
 /**
  * Select component with form integration
+ * Use React.ForwardRefRenderFunction for typing inner component
  */
-export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  (
-    {
-      id,
-      label,
-      options,
-      register,
-      error,
-      helpText,
-      wrapperClassName,
-      labelClassName,
-      selectClassName,
-      errorClassName,
-      size = 'md',
-      isSearchable = false,
-      className,
-      ...props
-    },
-    ref
-  ) => {
-    // Size classes
-    const sizeClasses = {
-      sm: 'py-1 text-sm',
-      md: 'py-2',
-      lg: 'py-3 text-lg',
-    };
+const SelectComponent: React.ForwardRefRenderFunction<
+  HTMLSelectElement, // Type of the element being forwarded
+  SelectProps<FieldValues> // Use FieldValues as default generic here
+> = (
+  {
+    id,
+    label,
+    options,
+    register, // register type is now UseFormRegister<FieldValues>
+    error,
+    helpText,
+    wrapperClassName,
+    labelClassName,
+    selectClassName,
+    errorClassName,
+    size = 'md',
+    className,
+    ...props
+  },
+  ref
+) => {
+  // Size classes
+  const sizeClasses = {
+    sm: 'py-1 text-sm',
+    md: 'py-2',
+    lg: 'py-3 text-lg',
+  };
 
-    return (
-      <div className={cn('mb-4', wrapperClassName)}>
-        {label && (
-          <label
-            htmlFor={id}
-            className={cn(
-              'block text-sm font-medium text-gray-700 mb-1',
-              labelClassName
-            )}
-          >
-            {label}
-          </label>
-        )}
-
-        <select
-          id={id}
-          {...register(id)}
+  return (
+    <div className={cn('mb-4', wrapperClassName)}>
+      {label && (
+        <label
+          htmlFor={id}
           className={cn(
-            'w-full px-3 border rounded-md focus:outline-none focus:ring-2 appearance-none bg-white',
-            sizeClasses[size],
-            error
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-300 focus:ring-purple-500',
-            selectClassName,
-            className
+            'block text-sm font-medium text-gray-700 mb-1',
+            labelClassName
           )}
-          ref={ref}
-          {...props}
         >
-          {options.map((option) => (
-            <option
-              key={option.value}
-              value={option.value}
-              disabled={option.disabled}
-            >
-              {option.label}
-            </option>
-          ))}
-        </select>
+          {label}
+        </label>
+      )}
 
-        {/* Custom select dropdown arrow */}
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-            <svg
-              className="h-4 w-4 fill-current"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
+      <select
+        id={id}
+        {...register(id)}
+        className={cn(
+          'w-full px-3 border rounded-md focus:outline-none focus:ring-2 appearance-none bg-white',
+          sizeClasses[size],
+          error
+            ? 'border-red-500 focus:ring-red-500'
+            : 'border-gray-300 focus:ring-purple-500',
+          selectClassName,
+          className
+        )}
+        ref={ref}
+        {...props}
+      >
+        {options.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+            disabled={option.disabled}
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+
+      {/* Custom select dropdown arrow */}
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+          <svg
+            className="h-4 w-4 fill-current"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
         </div>
-
-        {error && (
-          <p className={cn('text-red-500 text-sm mt-1', errorClassName)}>
-            {error.message}
-          </p>
-        )}
-
-        {helpText && !error && (
-          <p className="text-gray-500 text-sm mt-1">{helpText}</p>
-        )}
       </div>
-    );
-  }
-);
 
+      {error && (
+        <p className={cn('text-red-500 text-sm mt-1', errorClassName)}>
+          {error.message}
+        </p>
+      )}
+
+      {helpText && !error && (
+        <p className="text-gray-500 text-sm mt-1">{helpText}</p>
+      )}
+    </div>
+  );
+};
+
+// Export using forwardRef and set displayName
+export const Select = React.forwardRef(SelectComponent);
+// NOTE: This makes the exported Select component typed with FieldValues,
+// but usage should still work with more specific types due to hook form inference.
 Select.displayName = 'Select';
 
 /**
  * SearchableSelect component with search functionality
  */
-export const SearchableSelect = React.forwardRef<HTMLDivElement, Omit<SelectProps, 'register'> & {
+export const SearchableSelect = React.forwardRef<HTMLDivElement, Omit<SelectProps<FieldValues>, 'register' | 'id'> & {
+  id?: string;
   value?: string;
   onChange?: (value: string) => void;
 }>(
@@ -150,15 +156,11 @@ export const SearchableSelect = React.forwardRef<HTMLDivElement, Omit<SelectProp
       value,
       onChange,
       className,
-      ...props
     },
-    ref
   ) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedOption, setSelectedOption] = useState<SelectOption | null>(
-      options.find(option => option.value === value) || null
-    );
+    const selectedOption = options.find(option => option.value === value) || null;
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Size classes
@@ -189,7 +191,6 @@ export const SearchableSelect = React.forwardRef<HTMLDivElement, Omit<SelectProp
 
     // Handle option selection
     const handleSelect = (option: SelectOption) => {
-      setSelectedOption(option);
       setIsOpen(false);
       setSearchTerm('');
       onChange?.(option.value);

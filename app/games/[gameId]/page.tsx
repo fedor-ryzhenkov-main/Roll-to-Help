@@ -1,22 +1,16 @@
-import Link from 'next/link';
-import Image from "next/image";
 import { notFound } from 'next/navigation';
 import { getGameWithBids } from "../../lib/utils";
 import GameAuctionArea from '@/app/components/GameAuctionArea';
-import { Game, Bid } from '@/app/types';
+import { Game, Bid, User } from '@/app/types';
 
 type GameWithBids = Game & {
-  bids: (Bid & { user: any })[];
+  bids: (Bid & { user: User })[];
   event: {
     id: string;
     endDate: Date | string;
     isActive: boolean;
   };
 };
-
-interface GamePageProps {
-  params: { gameId: string };
-}
 
 export async function generateMetadata({ params }: { params: { gameId: string } }) {
   const { gameId } = await params;

@@ -15,6 +15,15 @@ interface UserInfo {
     // Add other fields returned by /api/auth/me if needed
 }
 
+// Define the expected response structure from /api/auth/me
+interface AuthMeResponse {
+    success: boolean;
+    data?: {
+        user: UserInfo | null;
+    } | null;
+    message?: string; // Optional message field
+}
+
 // Define the context shape
 interface TelegramContextType {
     linkedTelegramInfo: UserInfo | null;
@@ -43,7 +52,8 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
             console.log('TelegramProvider: Fetching /api/auth/me');
             try {
                 // Ensure credentials (cookies) are sent with the request
-                const response = await apiClient.get('auth/me', { credentials: 'include' }); 
+                // Provide the explicit type argument for the expected response
+                const response = await apiClient.get<AuthMeResponse>('auth/me', { credentials: 'include' }); 
                 if (response.success && response.data?.user) {
                     console.log('TelegramProvider: User data received:', response.data.user);
                     setLinkedTelegramInfo(response.data.user);
@@ -51,13 +61,15 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
                     console.log('TelegramProvider: No active session found or user data missing.');
                     setLinkedTelegramInfo(null); // Ensure state is null if not authenticated
                 }
-            } catch (error: any) {
-                if (error.status !== 401) {
+            } catch (error: unknown) {
+                if (typeof error === 'object' && error !== null && 'status' in error && error.status !== 401) {
                     console.error("Error fetching user status from /api/auth/me:", error);
-                } else {
+                } else if (typeof error === 'object' && error !== null && 'status' in error && error.status === 401) {
                     console.log('TelegramProvider: /api/auth/me returned 401 (Not Authenticated).');
+                } else {
+                    console.error("Unexpected error fetching user status:", error);
                 }
-                setLinkedTelegramInfo(null); // Clear state on error
+                setLinkedTelegramInfo(null); 
             } finally {
                 setIsLoading(false);
             }

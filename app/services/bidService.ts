@@ -4,23 +4,10 @@
  */
 
 import prisma from '@/app/lib/db';
-import { PrismaClient, Game, User } from '@prisma/client';
+import { PrismaClient, Game, Bid } from '@prisma/client';
 import { formatBidderCreatureName } from '@/app/utils/creatureNames';
-import { getCreatureNameForUser } from '@/app/utils/creatureNames';
 import { CURRENCY_SYMBOL } from '@/app/config/constants';
 import { logApiError } from '@/app/lib/api-utils';
-
-interface CreateBidParams {
-  gameId: number;
-  amount: number;
-  userId: string;
-  notes?: string;
-}
-
-interface GetWinningBidsParams {
-  gameId: number;
-  totalSeats?: number;
-}
 
 const prismaClient = new PrismaClient();
 
@@ -31,13 +18,13 @@ export async function createBid(
   gameId: string,
   amount: number,
   userId: string
-): Promise<{ success: boolean; bid?: any; error?: string }> {
+): Promise<{ success: boolean; bid?: Bid; error?: string }> {
   try {
     // Get the game AND its event to validate bid
     const game = await prisma.game.findUnique({
       where: { id: gameId },
       include: {
-        event: true, // Include the associated event
+        event: true, 
         bids: {
           orderBy: { amount: 'desc' },
           take: 1,
@@ -49,49 +36,40 @@ export async function createBid(
       return { success: false, error: `Game with ID ${gameId} not found` };
     }
 
-    // Event should always exist if game exists due to schema relations
-    // but add a safety check just in case.
     if (!game.event) {
       return { success: false, error: `Event data missing for game ${gameId}` };
     }
 
-    // Check if the event auction period has ended using the event's end date
     if (game.event.endDate && new Date(game.event.endDate) < new Date()) {
       return { success: false, error: 'The auction period for this event has ended' };
     }
 
-    // Check if event is active
     if (!game.event.isActive) {
       return { success: false, error: 'The event for this game is no longer active' };
     }
 
-    // Create the new bid
     const newBid = await prisma.bid.create({
       data: {
         amount,
         gameId,
         userId,
-        isWinning: false, // Initial status, will be updated below
+        isWinning: false,
       },
     });
 
-    // Get all bids for this game, ordered by amount
     const allBids = await prisma.bid.findMany({
       where: { gameId },
       orderBy: { amount: 'desc' },
       select: { id: true },
     });
 
-    // Determine winning bid IDs based on available seats
     const winningBidIds = allBids.slice(0, game.totalSeats).map(b => b.id);
 
-    // Update winning bids
     await prisma.bid.updateMany({
       where: { gameId, id: { in: winningBidIds } },
       data: { isWinning: true },
     });
 
-    // Update non-winning bids
     await prisma.bid.updateMany({
       where: { gameId, id: { notIn: winningBidIds } },
       data: { isWinning: false },

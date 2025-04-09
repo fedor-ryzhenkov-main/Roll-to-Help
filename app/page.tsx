@@ -31,7 +31,7 @@ export default function HomePage() {
               <span className="text-purple-600 mr-3 text-xl">📍</span>
               <div>
                 <p className="font-semibold text-gray-600">Где</p>
-                <p className="text-gray-800">Клуб "MESTO" на Техническом Университете</p>
+                <p className="text-gray-800">Клуб &quot;MESTO&quot; на Техническом Университете</p>
               </div>
             </div>
             <div className="flex items-center">
@@ -90,6 +90,14 @@ export default function HomePage() {
               </div>
             </a>
           </div>
+
+          <p className="mt-4 text-lg text-gray-600">
+            Присоединяйтесь к благотворительному аукциону настольных игр от клуба
+            <a href="https://vk.com/igroteka" target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:text-orange-800 font-semibold">
+               &quot;Игротека&quot;
+            </a>
+             в пользу фонда &quot;Добрый День&quot;.
+          </p>
         </div>
 
         {/* Bottom Button */}

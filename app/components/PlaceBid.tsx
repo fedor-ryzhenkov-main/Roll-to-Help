@@ -6,11 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useTelegram } from '@/app/context/TelegramContext';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Bid } from '@/app/types';
 import ErrorMessage from './ErrorMessage';
 import ErrorBoundary from './ErrorBoundary';
 import { apiClient, ApiError } from '@/app/utils/api-client';
+import { toast } from 'react-hot-toast';
 
 interface PlaceBidProps {
   gameId: string;
@@ -18,14 +18,11 @@ interface PlaceBidProps {
   currentMinWinningBid: number;
 }
 
-// Define form schema dynamically based on minimum bid required
 const createBidSchema = (minBid: number) => z.object({
   amount: z.number()
             .positive('Сумма должна быть положительной')
-            // Use Lari symbol ₾
             .min(minBid, `Сумма должна быть не менее ${minBid.toFixed(2)} ₾, чтобы выиграть`)
-            // Add validation for increments if necessary, although min usually handles it
-            // .refine(val => (val - minBid) % 10 === 0, { message: 'Сумма должна быть кратна шагу в 10 ₾ сверх минимальной' })
+
 });
 
 export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }: PlaceBidProps) {
@@ -35,12 +32,9 @@ export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Corrected logic for minimum bid required:
-  // If currentMinWinningBid is still the starting price, the minimum is the starting price.
-  // Otherwise, it's the lowest winning bid + increment.
   const minBidRequired = currentMinWinningBid <= startingPrice 
                           ? startingPrice 
-                          : currentMinWinningBid + 10; // Use 10 GEL increment
+                          : currentMinWinningBid + 10; 
   
   const bidSchema = createBidSchema(minBidRequired);
   
@@ -49,20 +43,15 @@ export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }
   const { register, handleSubmit, formState: { errors }, reset } = useForm<BidFormData>({ 
     resolver: zodResolver(bidSchema),
     defaultValues: {
-      amount: parseFloat(minBidRequired.toFixed(2)) // Pre-fill with minimum required
+      amount: parseFloat(minBidRequired.toFixed(2)) 
     }
   });
 
-  // Determine if user is allowed to bid
   const canBid = !isLoadingTelegramInfo && !!linkedTelegramInfo;
 
-  const resetApiState = () => setError(null);
-
   const handlePlaceBid = async (data: BidFormData) => {
-    // Reset states
     setSuccessMessage(null);
     setError(null);
-    resetApiState();
 
     if (!canBid || !linkedTelegramInfo) {
       setError('Пожалуйста, сначала свяжите ваш Telegram аккаунт.');
@@ -72,57 +61,50 @@ export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }
     setIsSubmitting(true);
 
     try {
-      // Use apiClient which handles CSRF headers automatically
       console.log("Submitting bid via apiClient...");
-      
+
       const payload = {
         gameId,
         amount: data.amount,
       };
-      
-      // apiClient.post returns the full ApiResponse { success, data, ... } on success
-      // Specify the expected type for the nested data
-      const responseData = await apiClient.post<{ data: { bid: Bid } }>('/api/bids', payload); 
-      
-      // Check the success flag and access the bid via responseData.data.bid
-      if (responseData.success && responseData.data?.bid) { 
-          setSuccessMessage(`Успешно! Ваша ставка ${responseData.data.bid.amount.toFixed(2)} ₾ принята!`);
+
+      const result = await apiClient.post<{ bid: Bid }>('/api/bids', payload);
+
+      if (result?.bid) {
+          setSuccessMessage(`Успешно! Ваша ставка ${result.bid.amount.toFixed(2)} ₾ принята!`);
           reset();
-          router.refresh(); // Refresh data after successful bid
+          router.refresh();
       } else {
-          // Handle cases where success might be true but data is missing, or success is false (though ApiError should handle non-2xx)
-          console.error('Bid response indicates failure or unexpected data format:', responseData);
-          throw new Error(responseData.message || 'Неожиданный ответ от сервера.');
+          console.error('Bid response successful but data format unexpected:', result);
+          setError('Получен неожиданный ответ от сервера.');
+          toast.error('Получен неожиданный ответ от сервера.');
       }
 
     } catch (err) {
-      console.error("Bid error:", err);
+      console.error("Bid submission error:", err);
       
-      let errorMessage = 'Произошла ошибка';
+      let errorMessage = 'Произошла ошибка при размещении ставки.';
       if (err instanceof ApiError) {
-        // Use message from ApiError
-        errorMessage = err.message;
-        // Handle specific statuses
+        errorMessage = err.message || 'Ошибка API.';
         if (err.status === 401) {
            errorMessage = 'Ошибка аутентификации. Попробуйте войти снова.';
         } else if (err.status === 403) {
-           errorMessage = 'Ошибка безопасности (CSRF). Попробуйте обновить страницу.';
+           errorMessage = 'Ошибка авторизации или CSRF. Попробуйте обновить страницу.';
         } else if (err.status === 400) {
-           // Keep the specific validation message from the API if it's a 400 Bad Request
            errorMessage = err.message || 'Неверные данные ставки.'; 
         } 
       } else if (err instanceof Error) {
-        // Handle generic JS errors
         errorMessage = err.message;
       } 
       
       setError(errorMessage);
+      toast.error(errorMessage);
+      
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Show loading state while session is loading
   if (isLoadingTelegramInfo) {
     return <div className="text-center text-gray-500">Загрузка...</div>;
   }
@@ -167,7 +149,6 @@ export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }
             <ErrorMessage 
               message={error} 
               severity="error" 
-              onDismiss={resetApiState}
             />
           )}
           
@@ -177,7 +158,6 @@ export default function PlaceBid({ gameId, startingPrice, currentMinWinningBid }
               message={successMessage} 
               severity="info" 
               className="bg-green-50 border-green-300 text-green-700"
-              onDismiss={() => setSuccessMessage(null)}
             />
           )}
           

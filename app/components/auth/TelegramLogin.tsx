@@ -18,6 +18,12 @@ interface UserInfo {
     isVerified?: boolean;
 }
 
+// Define the expected response structure from /api/auth/set-cookie
+interface SetCookieResponse {
+    success: boolean;
+    message?: string;
+}
+
 interface TelegramLoginProps {
   callbackUrl?: string;
 }
@@ -74,7 +80,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
             try {
               // Await the cookie setting process
               console.log('[TelegramLogin] Setting session cookie...');
-              const cookieResponse = await apiClient.post('/api/auth/set-cookie', {
+              const cookieResponse = await apiClient.post<SetCookieResponse>('/api/auth/set-cookie', {
                 sessionId: message.sessionId
               });
               

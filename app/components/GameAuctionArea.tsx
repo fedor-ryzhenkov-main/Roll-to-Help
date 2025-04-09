@@ -5,13 +5,11 @@ import Image from "next/image";
 import PlaceBid from '@/app/components/PlaceBid';
 import BidList from '@/app/components/BidList';
 import AuctionTimer from '@/app/components/AuctionTimer';
-import { Game, Bid } from '@/app/types';
+import { Game, Bid, User } from '@/app/types';
 import { useState, useEffect } from 'react';
-// Removed useRouter import as refresh is handled externally
 
-// Define the expected structure of the game data prop
 type GameWithBids = Game & {
-  bids: (Bid & { user: any })[];
+  bids: (Bid & { user: User })[];
   event: {
     id: string;
     endDate: Date | string;
@@ -29,13 +27,11 @@ interface GameAuctionAreaProps {
  * Handles the state related to the auction ending.
  */
 export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProps) {
-  // Use the prop directly for rendering game data
   const gameData = initialGameData; 
   const [isAuctionEnded, setIsAuctionEnded] = useState(false);
   const [currentMinWinningBid, setCurrentMinWinningBid] = useState(0);
 
   useEffect(() => {
-    // Calculate initial/updated state based on the current prop value
     console.log("GameAuctionArea useEffect triggered. End date:", gameData.event.endDate);
     const endDate = new Date(gameData.event.endDate);
     setIsAuctionEnded(endDate < new Date());
@@ -47,7 +43,7 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
                              : gameData.startingPrice;
     setCurrentMinWinningBid(calculatedMinBid);
 
-  }, [gameData]); // Re-run effect when initialGameData prop changes
+  }, [gameData]); 
 
   const handleTimerEnd = () => {
     console.log("GameAuctionArea timer ended.");

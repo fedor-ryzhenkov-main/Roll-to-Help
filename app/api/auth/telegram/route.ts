@@ -4,31 +4,21 @@
  * This API endpoint generates verification codes for initiating Telegram authentication.
  */
 
-import { NextResponse, NextRequest } from 'next/server';
-import { nanoid } from 'nanoid'; // Using nanoid for verification codes
-import prisma from '@/app/lib/db';
-import { addMinutes } from 'date-fns'; // For setting expiry
+import { NextResponse } from 'next/server';
+import { nanoid } from 'nanoid'; 
+import { addMinutes } from 'date-fns'; 
 
-// Function to generate a verification code (moved here for locality)
 function generateVerificationCode(length = 6): string {
-  return nanoid(length).toUpperCase(); // Generate a 6-character uppercase code
+  return nanoid(length).toUpperCase(); 
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const verificationCode = generateVerificationCode();
-    const codeExpiresMinutes = 10; // Code valid for 10 minutes
+    const codeExpiresMinutes = 10; 
     const expires = addMinutes(new Date(), codeExpiresMinutes);
-    const channelId = nanoid(16); // Generate a 16-character unique ID
+    const channelId = nanoid(16); 
 
-    // Store only code, channelId, expires
-    const pending = await prisma.pendingVerification.create({
-      data: {
-        verificationCode: verificationCode,
-        expires: expires,
-        channelId: channelId,
-      },
-    });
 
     console.log(`Generated verification code: ${verificationCode}, channelId: ${channelId}, expires: ${expires}`);
 
@@ -39,7 +29,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error generating verification code:', error);
-    // Handle potential unique constraint errors if code generation collides (rare)
     if (error instanceof Error && 'code' in error && error.code === 'P2002') { 
          return NextResponse.json({ 
              success: false, 
