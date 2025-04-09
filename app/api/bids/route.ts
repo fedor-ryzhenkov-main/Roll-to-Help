@@ -17,14 +17,13 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     
     if (!session || !session.user) {
+      console.log('Bid rejected: No session or user found');
       return createErrorResponse('Authentication required', HttpStatus.UNAUTHORIZED);
     }
     
-    // Based on our NextAuth config, we need to extract user ID differently
-    // In the NextAuth setup, default User has no id field directly
-    // @ts-expect-error - we have added sub field to session.user in our NextAuth config
-    const userId = session.user.sub;
+    const userId = session.user.id;
     if (!userId) {
+      console.log('Bid rejected: No user ID in session', JSON.stringify(session.user));
       return createErrorResponse('Invalid user session', HttpStatus.UNAUTHORIZED);
     }
     
@@ -58,7 +57,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error creating bid:', error);
     // Avoid leaking detailed errors in production
-    const message = error instanceof Error ? 'Error processing bid' : 'An internal error occurred';
+    const message = error instanceof Error ? error.message : 'An internal error occurred';
     return createErrorResponse(message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 } 

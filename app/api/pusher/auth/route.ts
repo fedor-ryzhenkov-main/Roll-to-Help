@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { pusherServer } from '@/app/lib/pusher-server';
 import { getServerSession } from 'next-auth/next'; // Import next-auth session getter
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'; // Import auth options
+import { HttpStatus } from '@/app/lib/http-status';
 
 /**
  * Authenticates Pusher subscriptions for private channels using NextAuth session.
@@ -13,13 +14,18 @@ export async function POST(request: NextRequest) {
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
-      console.warn('[Pusher Auth] Denied: User not authenticated (No NextAuth session).');
-      return new NextResponse('Forbidden', { status: 403 });
+      console.error("[Pusher Auth] Unauthorized: No session found");
+      return createErrorResponse("Unauthorized", HttpStatus.UNAUTHORIZED);
+    }
+
+    // @ts-expect-error - User ID is on sub in JWT, mapped to id in session
+    const userId = session.user.id;
+    if (!userId) {
+      console.error("[Pusher Auth] Unauthorized: No user ID found in session", JSON.stringify(session.user));
+      return createErrorResponse("Unauthorized", HttpStatus.UNAUTHORIZED);
     }
 
     // User is authenticated, get their ID from the session
-    // @ts-expect-error - we have added sub field to session.user in our NextAuth config
-    const userId = session.user.sub;
     console.log(`[Pusher Auth] User authenticated: ${userId}`);
 
     // 2. Get socket_id and channel_name from the request body
@@ -74,4 +80,8 @@ export async function POST(request: NextRequest) {
 // Explicitly type error as unknown for better handling
 async function logApiError(path: string, error: unknown) {
     console.error(`API Error at ${path}:`, error instanceof Error ? error.message : error);
+}
+
+function createErrorResponse(message: string, status: HttpStatus): NextResponse {
+  return new NextResponse(message, { status: status.value });
 } 

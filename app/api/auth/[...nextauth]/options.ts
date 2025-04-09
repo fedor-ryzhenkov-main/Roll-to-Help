@@ -19,6 +19,7 @@ declare module 'next-auth' {
 
   interface Session extends DefaultSession {
     user: {
+      id: string;
       isAdmin?: boolean;
       telegramId?: string | null;
       telegramUsername?: string | null;
@@ -107,7 +108,8 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Add custom properties from token to the session.user object
       if (token && session.user) {
-        // session.user.id should be populated from token.sub by default
+        // Explicitly map token.sub (user ID) to session.user.id
+        session.user.id = token.sub as string; // Ensure ID is assigned
         session.user.isAdmin = token.isAdmin;
         session.user.telegramId = token.telegramId;
         session.user.telegramUsername = token.telegramUsername;
