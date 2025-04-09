@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from "next/image";
 import PlaceBid from '@/app/components/PlaceBid';
 import BidList from '@/app/components/BidList';
-import AuctionTimer from '@/app/components/AuctionTimer';
 import { Game, Bid, User } from '@/app/types';
 import { useState, useEffect } from 'react';
 
@@ -28,14 +27,10 @@ interface GameAuctionAreaProps {
  */
 export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProps) {
   const gameData = initialGameData; 
-  const [isAuctionEnded, setIsAuctionEnded] = useState(false);
   const [currentMinWinningBid, setCurrentMinWinningBid] = useState(0);
 
   useEffect(() => {
-    console.log("GameAuctionArea useEffect triggered. End date:", gameData.event.endDate);
-    const endDate = new Date(gameData.event.endDate);
-    setIsAuctionEnded(endDate < new Date());
-    
+    console.log("GameAuctionArea useEffect triggered. Game ID:", gameData.id);
     const bids = gameData.bids || [];
     const topBids = bids.slice(0, gameData.totalSeats);
     const calculatedMinBid = topBids.length === gameData.totalSeats && topBids.length > 0
@@ -45,13 +40,8 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
 
   }, [gameData]); 
 
-  const handleTimerEnd = () => {
-    console.log("GameAuctionArea timer ended.");
-    setIsAuctionEnded(true);
-  };
-
   const displayBids = gameData.bids || [];
-  console.log(`GameAuctionArea rendering. isAuctionEnded: ${isAuctionEnded}, Bid count: ${displayBids.length}`);
+  console.log(`GameAuctionArea rendering. Bid count: ${displayBids.length}`);
 
   return (
     <div className="min-h-screen py-12">
@@ -83,13 +73,6 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
                 <p className="text-sm text-gray-600"><span className="font-semibold">Жанр:</span> {gameData.genre}</p>
               </div>
               <p className="text-gray-700 mb-4">{gameData.description || 'Описание отсутствует.'}</p>
-              
-              {/* Render Timer */}
-              {gameData.event.endDate && (
-                 <div className="mt-4">
-                   <AuctionTimer endDate={gameData.event.endDate} onTimerEnd={handleTimerEnd} />
-                 </div>
-              )}
             </div>
           </div>
           
@@ -106,7 +89,7 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
             
             {/* Conditionally Render PlaceBid Component */}
             <div className="md:w-1/2">
-              {!isAuctionEnded ? (
+              {gameData.event.isActive ? (
                 <PlaceBid 
                   gameId={gameData.id} 
                   startingPrice={gameData.startingPrice} 

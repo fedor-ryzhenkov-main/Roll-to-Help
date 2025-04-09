@@ -85,13 +85,14 @@ export default function PlaceBid({
         amount: data.amount,
       };
 
-      const result = await apiClient.post<{ bid: Bid }>('/api/bids', payload);
+      const result = await apiClient.post<{ data: { bid: Bid } }>('/api/bids', payload);
 
-      if (result?.bid) {
-          toast.success(`Успешно! Ваша ставка ${result.bid.amount.toFixed(2)} ₾ принята!`);
+      if (result?.data?.bid) {
+          const newBid = result.data.bid;
+          toast.success(`Успешно! Ваша ставка ${newBid.amount.toFixed(2)} ₾ принята!`);
           reset();
           if (onBidPlaced) {
-            onBidPlaced(result.bid);
+            onBidPlaced(newBid);
           }
           router.refresh();
       } else {

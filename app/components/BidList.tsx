@@ -1,8 +1,12 @@
 'use client';
 
 // REMOVED: import { useTelegram } from '@/app/context/TelegramContext';
+import React from 'react';
+// Rename imported Bid to BidType to avoid conflict
+import { Bid as BidType, User } from '@/app/types';
+import { CURRENCY_SYMBOL } from '@/app/config/constants';
 import { useSession } from 'next-auth/react'; // Import useSession
-import { formatBidderCreatureName } from '@/app/utils/creatureNames';
+import { formatBidderCreatureName } from '@/app/utils/creatureNames'; // Import the formatter
 import { useEffect } from 'react';
 
 // Define the structure of a bid passed to this component
@@ -15,7 +19,8 @@ interface Bid {
 
 // Define the props for the BidList component
 interface BidListProps {
-  bids: Bid[];
+  // Ensure the BidType includes createdAt
+  bids: (BidType & { user: User; createdAt: string | Date })[]; // Expect user data and createdAt with the bid
   totalSeats: number;
 }
 
@@ -23,16 +28,22 @@ interface BidListProps {
  * Client component responsible for rendering a list of bids.
  * It fetches the current user session and highlights the user's bids.
  */
-export default function BidList({ bids, totalSeats }: BidListProps) {
+const BidList: React.FC<BidListProps> = ({ bids, totalSeats }) => {
   console.log('BidList Component Rendered');
-  // Use useSession to get authentication status and user data
   const { data: session, status } = useSession();
   const isLoadingSession = status === 'loading';
-  // @ts-expect-error - we have added sub field to session.user in our NextAuth config
-  const currentUserId = session?.user?.sub; // Get user ID from session
+  const currentUserId = session?.user?.id; // Get current user ID
 
-  // Determine the top bids based on the totalSeats
-  const topBids = bids.slice(0, totalSeats);
+  // Sort bids by amount descending, then by time ascending for tie-breaking
+  const sortedBids = [...bids].sort((a, b) => {
+    if (b.amount !== a.amount) {
+      return b.amount - a.amount;
+    }
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+  const winningBids = sortedBids.slice(0, totalSeats);
+  const winningBidIds = new Set(winningBids.map(bid => bid.id));
 
   // Log session status and current user ID for debugging
   useEffect(() => {
@@ -45,40 +56,44 @@ export default function BidList({ bids, totalSeats }: BidListProps) {
     return <p>Загрузка данных пользователя...</p>;
   }
 
-  if (topBids.length === 0) {
-    return <p className="text-gray-600 italic">Ставок еще нет. Будьте первым!</p>;
+  if (sortedBids.length === 0) {
+    return <p className="text-gray-500 italic">Ставок пока нет.</p>;
   }
 
-  console.log(`BidList: Rendering ${topBids.length} bids. Current User: ${currentUserId}`);
+  console.log(`BidList: Rendering ${sortedBids.length} bids. Current User: ${currentUserId}`);
 
   return (
-    <ul className="space-y-3">
-      {topBids.map((bid, index) => {
-        const isCurrentUserBid = bid.userId === currentUserId;
-        const isWinning = index < totalSeats; // All displayed bids are potentially winning
-        const rank = index + 1;
+    <div className="space-y-3">
+      {sortedBids.length === 0 ? (
+        <p className="text-gray-500 italic">Ставок пока нет.</p>
+      ) : (
+        <ul className="divide-y divide-gray-200">
+          {sortedBids.map((bid, index) => {
+            const isWinning = winningBidIds.has(bid.id);
+            const isCurrentUserBid = bid.userId === currentUserId;
+            const bidderName = formatBidderCreatureName(bid.userId, isCurrentUserBid); // Use the formatter
 
-        return (
-          <li 
-            key={bid.id} 
-            className={`p-3 rounded-lg flex justify-between items-center transition-all duration-200 ease-in-out ${isCurrentUserBid ? 'bg-purple-100 shadow-md scale-[1.02]' : 'bg-white shadow-sm'} ${isWinning ? 'border-l-4 border-green-500' : 'border-l-4 border-gray-300'}`}
-          >
-            <div className="flex items-center space-x-3">
-              <span 
-                className={`font-bold text-lg w-8 text-center ${isWinning ? 'text-green-700' : 'text-gray-500'}`}
+            return (
+              <li 
+                key={bid.id}
+                className={`py-3 flex justify-between items-center ${isWinning ? 'font-semibold' : ''} ${isCurrentUserBid ? 'text-indigo-700 bg-indigo-50 px-2 -mx-2 rounded' : 'text-gray-800'}`}
               >
-                {rank}.
-              </span>
-              <span className={`font-semibold ${isCurrentUserBid ? 'text-purple-800' : 'text-gray-800'}`}>
-                {formatBidderCreatureName(bid.userId)}
-              </span>
-            </div>
-            <span className={`text-lg font-medium ${isWinning ? 'text-green-600' : 'text-gray-600'}`}>
-              {bid.amount.toFixed(2)} ₾
-            </span>
-          </li>
-        );
-      })}
-    </ul>
+                <span className="flex items-center">
+                  <span className={`mr-2 text-sm ${isWinning ? 'text-green-600' : 'text-gray-400'}`}>
+                    {index + 1}.
+                  </span>
+                  <span>{bidderName}</span> {/* Display formatted name */}
+                </span>
+                <span className={isWinning ? 'text-green-700' : 'text-gray-600'}>
+                  {bid.amount.toFixed(2)} {CURRENCY_SYMBOL}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
-} 
+};
+
+export default BidList; 

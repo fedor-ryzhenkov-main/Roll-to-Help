@@ -2,6 +2,7 @@ import prisma from "@/app/lib/db";
 import Link from 'next/link';
 import Image from "next/image";
 import { logApiError } from "@/app/lib/api-utils"; 
+import AuctionTimer from '@/app/components/AuctionTimer';
 
 
 export const dynamic = 'force-dynamic';
@@ -39,10 +40,18 @@ export const metadata = {
 export default async function GamesPage() {
   const games = await getActiveGames();
 
+  const eventEndDate = games.length > 0 ? games[0].event.endDate : null;
+
   return (
     <div className="min-h-screen py-12">
       <main className="container mx-auto px-4">
-        <h1 className="text-4xl font-bold text-center text-purple-900 mb-12">Доступные игры</h1>
+        <h1 className="text-4xl font-bold text-center text-purple-900 mb-8">Доступные игры</h1>
+
+        {eventEndDate && (
+          <div className="mb-10 max-w-md mx-auto">
+            <AuctionTimer endDate={eventEndDate} />
+          </div>
+        )}
 
         {games.length === 0 ? (
           <p className="text-center text-gray-600">Игры будут анонсированы скоро! Зайдите позже.</p>

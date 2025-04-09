@@ -48,6 +48,12 @@ export async function createBid(
       return { success: false, error: 'The event for this game is no longer active' };
     }
 
+
+    const validationResult = await validateBidAmount(gameId, amount);
+    if (!validationResult.valid) {
+      return { success: false, error: validationResult.message || 'Invalid bid amount' };
+    }
+
     const newBid = await prisma.bid.create({
       data: {
         amount,

@@ -36,18 +36,26 @@ const AuctionTimer: React.FC<AuctionTimerProps> = ({ endDate, onTimerEnd }) => {
         setTimeLeft('Аукцион завершен');
         setIsEnded(true);
         if (onTimerEnd) {
-          onTimerEnd(); 
+          onTimerEnd();
         }
         return null; // Stop the interval calculation
       } else {
-        setIsEnded(false); // Ensure it's marked as active if time restarts (unlikely but safe)
-        // Use formatDistanceStrict for a more precise countdown like "1 day 2 hours 30 minutes 5 seconds"
-        const formattedDistance = formatDistanceStrict(targetDate, now, { 
-          addSuffix: false, // Don't add "ago" or "in"
-          unit: 'second', // Calculate down to seconds
-          locale: ru // Use Russian locale for output like "день", "часов", "минут", "секунд"
-        });
-        setTimeLeft(formattedDistance);
+        setIsEnded(false); // Ensure it's marked as active
+
+        // Manual calculation of days, hours, minutes, seconds
+        const days = Math.floor(secondsRemaining / (60 * 60 * 24));
+        const hours = Math.floor((secondsRemaining % (60 * 60 * 24)) / (60 * 60));
+        const minutes = Math.floor((secondsRemaining % (60 * 60)) / 60);
+        const seconds = Math.floor(secondsRemaining % 60);
+
+        // Build the time string, omitting zero values at the start
+        let parts = [];
+        if (days > 0) parts.push(`${days} дн`);
+        if (hours > 0 || days > 0) parts.push(`${hours} ч`); // Show hours if days > 0 or hours > 0
+        if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes} мин`); // Show minutes if higher units > 0
+        parts.push(`${seconds} сек`); // Always show seconds unless ended
+
+        setTimeLeft(parts.join(' '));
         return secondsRemaining;
       }
     };
