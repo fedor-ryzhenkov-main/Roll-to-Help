@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Bid } from '@/app/types';
 import ErrorMessage from './ErrorMessage';
@@ -33,20 +32,17 @@ interface PlaceBidProps {
   gameId: string;
   startingPrice: number;
   currentMinWinningBid: number;
-  onBidPlaced?: (newBid: Bid) => void;
 }
 
 export default function PlaceBid({ 
     gameId, 
     startingPrice, 
     currentMinWinningBid, 
-    onBidPlaced 
 }: PlaceBidProps) {
   // Use useSession hook for status only
   const { status } = useSession(); 
   const isLoadingSession = status === 'loading';
   const isAuthenticated = status === 'authenticated';
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -91,10 +87,6 @@ export default function PlaceBid({
           const newBid = result.data.bid;
           toast.success(`Успешно! Ваша ставка ${newBid.amount.toFixed(2)} ₾ принята!`);
           reset();
-          if (onBidPlaced) {
-            onBidPlaced(newBid);
-          }
-          router.refresh();
       } else {
           console.error('Bid response successful but data format unexpected:', result);
           setError('Получен неожиданный ответ от сервера.');

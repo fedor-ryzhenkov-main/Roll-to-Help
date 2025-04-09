@@ -6,9 +6,15 @@ import PlaceBid from '@/app/components/PlaceBid';
 import BidList from '@/app/components/BidList';
 import { Game, Bid, User } from '@/app/types';
 import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+
+type BidWithUser = Bid & { 
+  user: User; 
+  createdAt: string | Date;
+};
 
 type GameWithBids = Game & {
-  bids: (Bid & { user: User })[];
+  bids: BidWithUser[];
   event: {
     id: string;
     endDate: Date | string;
@@ -26,7 +32,7 @@ interface GameAuctionAreaProps {
  * Handles the state related to the auction ending.
  */
 export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProps) {
-  const gameData = initialGameData; 
+  const [gameData, setGameData] = useState<GameWithBids>(initialGameData);
   const [currentMinWinningBid, setCurrentMinWinningBid] = useState(0);
 
   useEffect(() => {
@@ -39,6 +45,62 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
     setCurrentMinWinningBid(calculatedMinBid);
 
   }, [gameData]); 
+
+  useEffect(() => {
+    const gameId = gameData.id;
+    console.log(`[SSE] Setting up EventSource for game: ${gameId}`);
+    const eventSource = new EventSource(`/api/bids/stream?gameId=${gameId}`);
+
+    eventSource.onopen = () => {
+      console.log(`[SSE] Connection opened for game: ${gameId}`);
+    };
+
+    eventSource.addEventListener('new_bid', (event) => {
+      try {
+        const newBid = JSON.parse(event.data) as BidWithUser;
+        console.log('[SSE] Received new_bid event:', newBid);
+
+        setGameData((prevData) => {
+          if (prevData.bids.some(b => b.id === newBid.id)) {
+            return prevData;
+          }
+          const updatedBids = [...prevData.bids, newBid];
+          return { ...prevData, bids: updatedBids };
+        });
+        toast.success(`Новая ставка: ${newBid.amount.toFixed(2)} ₾!`);
+      } catch (error) {
+        console.error('[SSE] Error parsing new_bid event data:', error);
+        toast.error('Ошибка при обработке обновления ставки.');
+      }
+    });
+
+    eventSource.onerror = (error) => {
+      console.error('[SSE] EventSource error:', error);
+    };
+
+    return () => {
+      console.log(`[SSE] Closing EventSource for game: ${gameId}`);
+      eventSource.close();
+    };
+
+  }, [gameData.id]);
+
+  useEffect(() => {
+    console.log("Recalculating min winning bid. Bids count:", gameData.bids.length);
+    const bids = gameData.bids || [];
+    const sortedBids = [...bids].sort((a, b) => {
+      if (b.amount !== a.amount) return b.amount - a.amount;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+    const topBids = sortedBids.slice(0, gameData.totalSeats);
+    const calculatedMinBid = topBids.length === gameData.totalSeats && topBids.length > 0
+                             ? topBids[topBids.length - 1].amount + 0.01
+                             : gameData.startingPrice;
+    
+    setCurrentMinWinningBid(Math.max(parseFloat(calculatedMinBid.toFixed(2)), gameData.startingPrice));
+
+  }, [gameData.bids, gameData.totalSeats, gameData.startingPrice]);
 
   const displayBids = gameData.bids || [];
   console.log(`GameAuctionArea rendering. Bid count: ${displayBids.length}`);
@@ -80,7 +142,7 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
           <div className="p-8 border-t border-gray-200 md:flex md:space-x-8">
             {/* Top Bids - Use BidList component */}
             <div className="md:w-1/2 mb-8 md:mb-0">
-              <h2 className="text-xl font-semibold text-purple-900 mb-4">Текущие ставки ({displayBids.slice(0, gameData.totalSeats).length} / {gameData.totalSeats} мест)</h2>
+              <h2 className="text-xl font-semibold text-purple-900 mb-4">Текущие ставки ({displayBids.filter(b => b.isWinning).length} / {gameData.totalSeats} мест)</h2>
               <BidList bids={displayBids} totalSeats={gameData.totalSeats} />
               <p className="text-sm text-gray-500 mt-4">
                 Минимальная ставка для попадания в топ {gameData.totalSeats}: {`${currentMinWinningBid.toFixed(2)} ₾`}

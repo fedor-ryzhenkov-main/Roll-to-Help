@@ -9,14 +9,6 @@ import { useSession } from 'next-auth/react'; // Import useSession
 import { formatBidderCreatureName } from '@/app/utils/creatureNames'; // Import the formatter
 import { useEffect } from 'react';
 
-// Define the structure of a bid passed to this component
-interface Bid {
-  id: string | number;
-  amount: number;
-  userId: string; // Ensure userId is always present
-  // Add other relevant bid fields if needed, e.g., createdAt
-}
-
 // Define the props for the BidList component
 interface BidListProps {
   // Ensure the BidType includes createdAt

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { differenceInSeconds, formatDistanceStrict } from 'date-fns';
-import { ru } from 'date-fns/locale'; // Import Russian locale
+import { differenceInSeconds } from 'date-fns';
 
 interface AuctionTimerProps {
   endDate: Date | string; // Accept Date object or ISO string
@@ -49,7 +48,7 @@ const AuctionTimer: React.FC<AuctionTimerProps> = ({ endDate, onTimerEnd }) => {
         const seconds = Math.floor(secondsRemaining % 60);
 
         // Build the time string, omitting zero values at the start
-        let parts = [];
+        const parts: string[] = [];
         if (days > 0) parts.push(`${days} дн`);
         if (hours > 0 || days > 0) parts.push(`${hours} ч`); // Show hours if days > 0 or hours > 0
         if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes} мин`); // Show minutes if higher units > 0

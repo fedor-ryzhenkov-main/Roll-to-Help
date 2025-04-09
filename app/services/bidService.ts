@@ -8,6 +8,7 @@ import { PrismaClient, Game, Bid } from '@prisma/client';
 import { formatBidderCreatureName } from '@/app/utils/creatureNames';
 import { CURRENCY_SYMBOL } from '@/app/config/constants';
 import { logApiError } from '@/app/lib/api-utils';
+import bidEventEmitter from '@/app/lib/eventEmitter';
 
 const prismaClient = new PrismaClient();
 
@@ -80,6 +81,21 @@ export async function createBid(
       where: { gameId, id: { notIn: winningBidIds } },
       data: { isWinning: false },
     });
+
+    // --- Emit event for SSE --- 
+    // Fetch the bid again with user data to send to clients
+    const bidWithUser = await prisma.bid.findUnique({
+      where: { id: newBid.id },
+      include: { user: true } // Include user data
+    });
+
+    if (bidWithUser) {
+      bidEventEmitter.emit('new_bid', bidWithUser); 
+      console.log(`[bidService] Emitted 'new_bid' event for bid ${bidWithUser.id}`);
+    } else {
+      console.error(`[bidService] Failed to fetch bid ${newBid.id} with user data after creation.`);
+    }
+    // --- End Emit event ---
 
     return { success: true, bid: newBid };
   } catch (error) {
