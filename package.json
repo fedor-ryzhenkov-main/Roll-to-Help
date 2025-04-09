@@ -5,22 +5,13 @@
   "description": "A lightweight web application for hosting charity tabletop gaming events where users can bid on game seats to support charity.",
   "main": "index.js",
   "scripts": {
-    "dev": "node server.ts",
-    "next:dev": "next dev",
-    "ws:dev": "npx dotenv-cli -e .env.local npx tsx ./scripts/websocket-server.ts",
-    "task:run": "npx dotenv-cli -e .env.local npx tsx ./scripts/run-task.ts",
-    "test:notification": "npx dotenv-cli -e .env.local npx tsx ./scripts/test-notifications.ts",
-    "test:workflow": "npx dotenv-cli -e .env.local npx tsx ./scripts/test-auction-workflow.ts",
     "build": "next build",
-    "start": "NODE_ENV=production node server.ts",
-    "next:start": "next start",
+    "start": "node server.ts",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "db:seed": "npx prisma db seed",
-    "db:setup": "npm run prisma:migrate && npm run db:seed",
-    "prepare-deploy": "npm run prisma:generate && npm run build",
-    "bot:webhook": "dotenv -e .env.local tsx scripts/setup-webhook.ts"
+    "bot:webhook": "tsx scripts/setup-webhook.ts"
   },
   "keywords": [
     "charity",
