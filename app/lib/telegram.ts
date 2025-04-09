@@ -11,6 +11,7 @@ import {
 } from '@/app/services/telegramService';
 import { logApiError } from '@/app/lib/api-utils';
 import { timingSafeEqual } from 'crypto'; // Ensure imported
+import { pusherServer } from '@/app/lib/pusher-server'; // Import pusher server utility
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -124,33 +125,45 @@ function configureBot() {
         }
         await ctx.reply(replyMessage); 
 
-        // --- Trigger WS Notification (Only on SUCCESS) --- 
+        // --- Trigger Pusher Notification (Only on SUCCESS) --- 
         if (verificationResult.success && verificationResult.channelId && verificationResult.sessionId && verificationResult.user) {
-          console.log(`[Telegram Handler] Verification success. Triggering WS for Channel: ${verificationResult.channelId}`);
+          console.log(`[Telegram Handler] Verification success. Triggering Pusher for Channel: private-${verificationResult.channelId}`);
           
-          const wsMessage = { type: 'sessionCreated', user: { id: verificationResult.user.id, telegramFirstName: verificationResult.user.telegramFirstName, telegramUsername: verificationResult.user.telegramUsername, }, sessionId: verificationResult.sessionId };
+          const pusherEvent = 'session-created'; // Event name must match client
+          const pusherChannel = `private-${verificationResult.channelId}`; // Channel name must match client
+          const pusherData = { 
+              user: { 
+                  id: verificationResult.user.id, 
+                  telegramFirstName: verificationResult.user.telegramFirstName, 
+                  telegramUsername: verificationResult.user.telegramUsername, 
+              }, 
+              sessionId: verificationResult.sessionId 
+          };
+          
           try {
-            if (typeof global.sendWsMessage === 'function') {
-              console.log(`[Telegram Handler] Calling global.sendWsMessage for channel ${verificationResult.channelId}`);
-              const success = global.sendWsMessage(verificationResult.channelId, wsMessage);
-              if (!success) {
-                  console.error(`[Telegram Handler] global.sendWsMessage function returned false for channel ${verificationResult.channelId}`);
-                  logApiError('telegram-ws-notification-global', new Error(`WS notification via global.sendWsMessage failed`), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user.id });
-              }
-            } else {
-                 console.error('[Telegram Handler] CRITICAL: global.sendWsMessage function not found!');
-                 logApiError('telegram-ws-notification-global-missing', new Error(`global.sendWsMessage not defined`), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user.id });
+            if (!pusherServer) {
+                 throw new Error('Pusher server instance is not available.');
             }
-          } catch (wsError: unknown) {
-              const message = wsError instanceof Error ? wsError.message : 'Unknown WS error';
-              console.error(`[Telegram Handler] Error calling global.sendWsMessage:`, message, wsError);
-              logApiError('telegram-ws-notification-global-error', wsError, { channelId: verificationResult.channelId });
+             // Use await here as trigger is async
+             await pusherServer.trigger(pusherChannel, pusherEvent, pusherData);
+             console.log(`[Telegram Handler] Successfully triggered Pusher event '${pusherEvent}' on channel ${pusherChannel}`);
+
+          } catch (pusherError: unknown) {
+              const message = pusherError instanceof Error ? pusherError.message : 'Unknown Pusher trigger error';
+              console.error(`[Telegram Handler] Error triggering Pusher event '${pusherEvent}' on channel ${pusherChannel}:`, message, pusherError);
+              logApiError('telegram-pusher-notification-error', pusherError, { 
+                  channelId: verificationResult.channelId, 
+                  pusherChannel: pusherChannel, 
+                  pusherEvent: pusherEvent 
+              });
+              // Decide if you need to inform the user about the notification failure
+              // Maybe reply differently in Telegram?
           }
         } else if (verificationResult.success) {
-             console.warn(`[Telegram Handler] Verification successful but missing data for WS notification. Result:`, verificationResult);
-             logApiError('telegram-ws-missing-data', new Error('Missing data after successful verification'), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user?.id, hasUser: !!verificationResult.user });
+             console.warn(`[Telegram Handler] Verification successful but missing data for Pusher notification. Result:`, verificationResult);
+             logApiError('telegram-pusher-missing-data', new Error('Missing data after successful verification'), { channelId: verificationResult.channelId, sessionId: verificationResult.sessionId, userId: verificationResult.user?.id, hasUser: !!verificationResult.user });
         }
-        // --- End WS Notification Block ---
+        // --- End Pusher Notification Block ---
 
         return; 
       }

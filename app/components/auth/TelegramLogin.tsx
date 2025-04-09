@@ -8,6 +8,8 @@ import { toast } from 'react-hot-toast';
 import { ApiError } from '@/app/utils/api-client';
 import { Button } from '@/app/components/ui/Button';
 import { Loader2 } from 'lucide-react';
+import { getPusherClient } from '@/app/lib/pusher-client';
+import type { Channel } from 'pusher-js';
 
 // Define type for user info received
 interface UserInfo {
@@ -37,128 +39,114 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('callbackUrl') || callbackUrl || '/';
-  const wsRef = useRef<WebSocket | null>(null);
+  const pusherChannelRef = useRef<Channel | null>(null);
   const { setLinkedTelegramInfo, setIsLoading: setTelegramLoading } = useTelegram();
   
   useEffect(() => {
     return () => {
-      wsRef.current?.close();
+      if (pusherChannelRef.current && channelId) {
+        console.log(`[Pusher] Unsubscribing from channel: private-${channelId}`);
+        getPusherClient().unsubscribe(`private-${channelId}`);
+        pusherChannelRef.current = null;
+      }
     };
-  }, []);
+  }, [channelId]);
 
   useEffect(() => {
-    if (verificationCode && channelId && verificationStatus === 'pending') {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.hostname}`;
-      
-      console.log(`Connecting WebSocket to ${wsUrl} for channel ${channelId}`);
-      wsRef.current = new WebSocket(wsUrl);
+    if (channelId && verificationStatus === 'pending') {
+      if (pusherChannelRef.current) {
+        console.warn(`[Pusher] Attempted to subscribe multiple times to private-${channelId}. Ignoring.`);
+        return;
+      }
 
-      wsRef.current.onopen = () => {
-        console.log('WebSocket connected');
-        wsRef.current?.send(JSON.stringify({ type: 'register', channelId }));
-      };
+      const pusher = getPusherClient();
+      if (!pusher || !pusher.subscribe) {
+        console.error('[Pusher] Pusher client not available or invalid.');
+        setError('Ошибка инициализации системы уведомлений (Pusher).');
+        setVerificationStatus('error');
+        return;
+      }
 
-      wsRef.current.onmessage = async (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log('[TelegramLogin] WebSocket message received:', message);
+      const pusherChannelName = `private-${channelId}`;
+      console.log(`[Pusher] Subscribing to channel: ${pusherChannelName}`);
 
-          if (message.type === 'sessionCreated' && message.user && message.sessionId) {
-            console.log('[TelegramLogin] Session created via WS. User data received:', message.user);
+      try {
+        pusherChannelRef.current = pusher.subscribe(pusherChannelName);
+
+        pusherChannelRef.current.bind('session-created', async (data: any) => {
+          console.log('[Pusher] Event \'session-created\' received:', data);
+
+          if (data.user && data.sessionId) {
+            console.log('[Pusher] Session created via Pusher. User data received:', data.user);
             
-            // --- Update Context First ---
-            // The received message.user should now match UserInfo structure
-            console.log('[TelegramLogin] Calling setLinkedTelegramInfo with:', message.user);
+            console.log('[TelegramLogin] Calling setLinkedTelegramInfo with:', data.user);
             setTelegramLoading(true);
-            setLinkedTelegramInfo(message.user as UserInfo); 
+            setLinkedTelegramInfo(data.user as UserInfo);
             setVerificationStatus('success');
             toast.success('Аккаунт успешно связан!');
-            // ---------------------------
 
-            // --- Set Cookie and then Refresh/Navigate ---
             try {
-              // Await the cookie setting process
               console.log('[TelegramLogin] Setting session cookie...');
               const cookieResponse = await apiClient.post<SetCookieResponse>('/api/auth/set-cookie', {
-                sessionId: message.sessionId
+                sessionId: data.sessionId
               });
               
               if (!cookieResponse.success) {
                 console.error('[TelegramLogin] Failed to set session cookie:', cookieResponse.message);
                 setError('Ошибка установки сессии. Попробуйте обновить страницу.');
                 toast.error('Ошибка входа. Обновите страницу.');
-                wsRef.current?.close(); // Close WS on failure
                 setTelegramLoading(false);
-                return; // Stop further execution here
+                return;
               } 
               
-              // Cookie set successfully, now refresh and navigate
               console.log('[TelegramLogin] Session cookie set. Refreshing router...');
-              router.refresh(); // Restore router refresh
+              router.refresh();
               
               console.log(`[TelegramLogin] Navigating to: ${returnUrl}`);
-              // Navigate after refresh (refresh might take a moment)
-              // Consider if push is always needed if refresh updates the header via layout re-render
-              if (returnUrl !== '/link-telegram') { // Avoid redirect loop on login page
+              if (returnUrl !== '/link-telegram') {
                    router.push(returnUrl);
               }
-              
-              // Close WebSocket slightly later after navigation potentially starts
-              setTimeout(() => { 
-                   wsRef.current?.close(); 
-                   console.log('[TelegramLogin] WebSocket closed after navigation.');
-              }, 300); 
+
+              if (pusherChannelRef.current) {
+                console.log(`[Pusher] Unsubscribing from channel ${pusherChannelName} after success.`);
+                pusher.unsubscribe(pusherChannelName);
+                pusherChannelRef.current = null;
+              }
 
             } catch (cookieError) {
               console.error('[TelegramLogin] Error calling /api/auth/set-cookie:', cookieError);
               setError('Ошибка связи с сервером для установки сессии.');
               toast.error('Ошибка сервера при входе.');
-              wsRef.current?.close(); // Close WS on failure
               setTelegramLoading(false);
             }
-            // --------------------------------------------
             
-          } else if (message.type === 'error') {
-             console.error('[TelegramLogin] Received error message via WebSocket:', message.error);
-             setError(message.error || 'Ошибка верификации на сервере.');
+          } else if (data.error) {
+             console.error('[Pusher] Received error message via Pusher:', data.error);
+             setError(data.error || 'Ошибка верификации на сервере (Pusher).');
              setVerificationStatus('error');
-             toast.error(message.error || 'Ошибка верификации.');
-             wsRef.current?.close();
-          } else if (message.type === 'registered'){
-             console.log(`WebSocket registered for channel: ${message.channelId}`);
+             toast.error(data.error || 'Ошибка верификации (Pusher).');
           } else {
-            console.warn('Received unknown WebSocket message type:', message.type);
+            console.warn('[Pusher] Received unknown data structure on session-created event:', data);
           }
-        } catch (e) {
-          console.error('Error processing WebSocket message:', e);
-          setError('Не удалось обработать сообщение сервера.');
+        });
+
+        pusherChannelRef.current.bind('pusher:subscription_succeeded', () => {
+          console.log(`[Pusher] Successfully subscribed to ${pusherChannelName}`);
+        });
+
+        pusherChannelRef.current.bind('pusher:subscription_error', (status: any) => {
+          console.error(`[Pusher] Subscription error for ${pusherChannelName}:`, status);
+          setError(`Ошибка подписки на канал уведомлений (${status.status}). Проверьте конфигурацию.`);
           setVerificationStatus('error');
-          wsRef.current?.close();
-        }
-      };
+        });
 
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setError('Ошибка WebSocket соединения. Убедитесь, что подключение к интернету стабильно.');
+      } catch (subError) {
+        console.error(`[Pusher] Error subscribing to channel ${pusherChannelName}:`, subError);
+        setError('Ошибка подписки на канал уведомлений.');
         setVerificationStatus('error');
-        toast.error('Ошибка соединения WebSocket.');
-      };
-
-      wsRef.current.onclose = (event) => {
-        console.log('WebSocket disconnected. Code:', event.code, 'Reason:', event.reason);
-        if (verificationStatus === 'pending') {
-             setError('Соединение потеряно во время верификации. Попробуйте снова.');
-             setVerificationStatus('error');
-        }
-      };
-      
-      return () => {
-        console.log('Closing WebSocket connection due to effect cleanup.');
-        wsRef.current?.close();
-      };
+      }
     }
-  }, [verificationCode, channelId, verificationStatus, setLinkedTelegramInfo, router, returnUrl, setTelegramLoading]);
+  }, [channelId, verificationStatus, setLinkedTelegramInfo, router, returnUrl, setTelegramLoading, pusherChannelRef]);
   
   const handleGenerateCodeClick = async () => {
     if (isLoading) return; 
@@ -170,7 +158,11 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       setChannelId(null);
       setVerificationStatus('idle');
       
-      wsRef.current?.close();
+      if (pusherChannelRef.current && channelId) {
+        console.log(`[Pusher] Unsubscribing from previous channel: private-${channelId}`);
+        getPusherClient().unsubscribe(`private-${channelId}`);
+        pusherChannelRef.current = null;
+      }
       
       const result = await apiClient.post<{
          success: boolean; 
