@@ -6,6 +6,7 @@ import { Button } from "@/app/components/ui";
 import { apiClient } from "@/app/utils/api-client";
 import { toast } from "react-hot-toast";
 import { useState } from "react";
+import { ApiResponse } from "@/app/lib/api-utils";
 
 export default function NavBar() {
   const { linkedTelegramInfo, isLoading, setLinkedTelegramInfo } = useTelegram();
@@ -14,13 +15,13 @@ export default function NavBar() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const response = await apiClient.post('/api/auth/logout');
+      const response = await apiClient.post<ApiResponse>('/api/auth/logout');
       
       if (response.success) {
         console.log("Logout successful on server.");
         toast.success('Вы успешно вышли.');
       } else {
-        console.error("Server logout failed:", response.message);
+        console.error("Server logout failed:", response.error?.message);
         toast.error('Ошибка выхода из системы.');
       }
     } catch (error) {
@@ -49,9 +50,9 @@ export default function NavBar() {
           ) : linkedTelegramInfo ? (
             <div className="flex items-center space-x-2 sm:space-x-3">
               <span className="text-sm hidden sm:inline">
-                Привет, {linkedTelegramInfo.firstName || linkedTelegramInfo.username || 'User'}!
-                {linkedTelegramInfo.username && (
-                  <span className="ml-1 text-green-600">(✅ @{linkedTelegramInfo.username})</span>
+                Привет, {linkedTelegramInfo.telegramFirstName || linkedTelegramInfo.telegramUsername || 'User'}!
+                {linkedTelegramInfo.telegramUsername && (
+                  <span className="ml-1 text-green-600">(✅ @{linkedTelegramInfo.telegramUsername})</span>
                 )}
               </span>
               <Button 

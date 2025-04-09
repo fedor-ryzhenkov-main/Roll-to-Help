@@ -3,12 +3,6 @@
 import React, { useEffect } from 'react';
 import { useSearchParams, usePathname, useRouter } from 'next/navigation';
 
-/**
- * GameLayout - Handles auto-reload after authentication
- * 
- * This component provides a layout for game pages that includes
- * logic to detect and handle authentication redirects.
- */
 export default function GameLayout({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();

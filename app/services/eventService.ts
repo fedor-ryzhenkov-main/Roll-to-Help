@@ -11,9 +11,9 @@ import { API } from '@/app/config/constants';
 // Cache keys
 const CACHE_KEYS = {
   ACTIVE_EVENTS: 'events:active',
-  EVENT: (id: number) => `event:${id}`,
-  EVENT_GAMES: (eventId: number) => `event:${eventId}:games`,
-  GAME: (id: number) => `game:${id}`,
+  EVENT: (id: string) => `event:${id}`,
+  EVENT_GAMES: (eventId: string) => `event:${eventId}:games`,
+  GAME: (id: string) => `game:${id}`,
 };
 
 // Cache TTLs (in milliseconds)
@@ -80,7 +80,7 @@ export async function getEvents(options: EventsQueryOptions = {}): Promise<{ eve
 /**
  * Get a specific event by ID
  */
-export async function getEvent(id: number): Promise<Event | null> {
+export async function getEvent(id: string): Promise<Event | null> {
   const cacheKey = CACHE_KEYS.EVENT(id);
   
   return await cache.getOrSet(
@@ -97,7 +97,7 @@ export async function getEvent(id: number): Promise<Event | null> {
 /**
  * Get games for an event
  */
-export async function getEventGames(eventId: number): Promise<Game[]> {
+export async function getEventGames(eventId: string): Promise<Game[]> {
   const cacheKey = CACHE_KEYS.EVENT_GAMES(eventId);
   
   return await cache.getOrSet(
@@ -105,7 +105,7 @@ export async function getEventGames(eventId: number): Promise<Game[]> {
     async () => {
       return await prisma.game.findMany({
         where: { eventId },
-        orderBy: { title: 'asc' },
+        orderBy: { name: 'asc' },
       });
     },
     { ttl: CACHE_TTL.GAMES }
@@ -115,7 +115,7 @@ export async function getEventGames(eventId: number): Promise<Game[]> {
 /**
  * Get a specific game by ID
  */
-export async function getGame(id: number, includeEvent: boolean = false): Promise<Game | null> {
+export async function getGame(id: string, includeEvent: boolean = false): Promise<Game | null> {
   const cacheKey = CACHE_KEYS.GAME(id);
   
   return await cache.getOrSet(
@@ -133,7 +133,7 @@ export async function getGame(id: number, includeEvent: boolean = false): Promis
 /**
  * Get game with bids
  */
-export async function getGameWithBids(id: number): Promise<Game | null> {
+export async function getGameWithBids(id: string): Promise<Game | null> {
   // This data is more dynamic, so we use a short cache or no cache at all
   return await prisma.game.findUnique({
     where: { id },
@@ -150,13 +150,13 @@ export async function getGameWithBids(id: number): Promise<Game | null> {
 /**
  * Invalidate caches when data changes
  */
-export function invalidateEventCache(eventId: number): void {
+export function invalidateEventCache(eventId: string): void {
   cache.delete(CACHE_KEYS.ACTIVE_EVENTS);
   cache.delete(CACHE_KEYS.EVENT(eventId));
   cache.delete(CACHE_KEYS.EVENT_GAMES(eventId));
 }
 
-export function invalidateGameCache(gameId: number, eventId?: number): void {
+export function invalidateGameCache(gameId: string, eventId?: string): void {
   cache.delete(CACHE_KEYS.GAME(gameId));
   if (eventId) {
     cache.delete(CACHE_KEYS.EVENT_GAMES(eventId));

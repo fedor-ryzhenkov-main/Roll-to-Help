@@ -1,19 +1,18 @@
 import prisma from "@/app/lib/db";
 import Link from 'next/link';
 import Image from "next/image";
-import { logApiError } from "@/app/lib/api-utils"; // Assuming this is correctly importable
+import { logApiError } from "@/app/lib/api-utils"; 
 
-// Force dynamic rendering to ensure this runs on every request in production
+
 export const dynamic = 'force-dynamic';
 
-// Fetch active games from the database
 async function getActiveGames() {
   try {
     console.log('[getActiveGames] Executing prisma.game.findMany...');
     const games = await prisma.game.findMany({
       where: {
         event: {
-          isActive: true,
+          isActive: true, 
         },
       },
       include: {

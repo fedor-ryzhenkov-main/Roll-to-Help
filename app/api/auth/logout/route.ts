@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) { // Changed to POST for semant
       console.log(`Deleted session from DB for sessionId: ${sessionId}`);
     } catch (dbError) {
       console.error(`Error deleting session ${sessionId} from DB:`, dbError);
-      // Log the error but proceed to clear the cookie anyway
     }
   }
 

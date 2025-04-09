@@ -7,6 +7,7 @@ import { apiClient } from '@/app/utils/api-client'
 import { Button } from '@/app/components/ui/Button'
 import { Alert } from '@/app/components/ui/Alert'
 import { useTelegram } from '@/app/context/TelegramContext'
+import { ApiResponse } from '@/app/lib/api-utils'
 
 interface BidFormProps {
   gameId: string | number
@@ -47,19 +48,15 @@ export default function BidForm({
     console.log('Submitting bid:', payload)
 
     try {
-      const response = await apiClient.post('/api/bids', payload)
+      const response = await apiClient.post<ApiResponse>('/api/bids', payload)
 
       if (response.success) {
         toast.success('Ставка успешно размещена!')
         reset()
         if (onSuccess) onSuccess()
       } else {
-        const errorMsg = response.message || 'Не удалось разместить ставку'
-        if (response.status === 401) {
-          toast.error('Ошибка аутентификации. Попробуйте войти снова.')
-        } else {
-          toast.error(`Ошибка ставки: ${errorMsg}`)
-        }
+        const errorMsg = response.error?.message || 'Не удалось разместить ставку'
+        toast.error(`Ошибка ставки: ${errorMsg}`)
         setApiError(errorMsg)
       }
     } catch (error) {
@@ -105,7 +102,7 @@ export default function BidForm({
       )}
 
       {apiError && (
-        <Alert type="error">{apiError}</Alert>
+        <Alert variant="error">{apiError}</Alert>
       )}
 
       <div className="flex justify-end space-x-3">
