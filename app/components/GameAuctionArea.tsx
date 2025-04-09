@@ -15,6 +15,7 @@ type BidWithUser = Bid & {
 
 type GameWithBids = Game & {
   bids: BidWithUser[];
+  minBidIncrement: number;
   event: {
     id: string;
     endDate: Date | string;
@@ -124,7 +125,7 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
     
     setCurrentMinWinningBid(Math.max(parseFloat(calculatedMinBid.toFixed(2)), gameData.startingPrice));
 
-  }, [gameData.bids, gameData.totalSeats, gameData.startingPrice]);
+  }, [gameData.bids, gameData.totalSeats, gameData.startingPrice, gameData.minBidIncrement]);
 
   const displayBids = gameData.bids || [];
   console.log(`GameAuctionArea rendering. Bid count: ${displayBids.length}`);
@@ -180,6 +181,7 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
                   gameId={gameData.id} 
                   startingPrice={gameData.startingPrice} 
                   currentMinWinningBid={currentMinWinningBid} 
+                  minBidIncrement={gameData.minBidIncrement}
                 />
               ) : (
                 <div className="bg-red-100 p-6 rounded-lg shadow-inner text-center">

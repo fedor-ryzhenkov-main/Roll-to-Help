@@ -15,8 +15,14 @@ import { Button } from '@/app/components/ui/Button';
 import { Alert } from "@/app/components/ui/Alert";
 import { Terminal, UserPlus } from "lucide-react"
 
-// Define schema creation function locally
-const createBidSchema = (minBid: number) => z.object({
+interface PlaceBidProps {
+  gameId: string;
+  startingPrice: number;
+  currentMinWinningBid: number;
+  minBidIncrement: number;
+}
+
+const createBidSchema = (minBid: number, startingPrice: number, increment: number) => z.object({
   amount: z.number({
       required_error: "Сумма ставки обязательна",
       invalid_type_error: "Сумма должна быть числом",
@@ -26,18 +32,16 @@ const createBidSchema = (minBid: number) => z.object({
     .refine(val => val * 100 === Math.floor(val * 100), { // Check for max 2 decimal places
         message: "Пожалуйста, укажите не более двух знаков после запятой."
     })
+    .refine(val => val === minBid || ((val - minBid) % increment === 0) || minBid === startingPrice, {
+        message: `Сумма должна быть кратна шагу в ${increment.toFixed(2)} ₾ сверх текущей минимальной ставки.`
+    })
 });
-
-interface PlaceBidProps {
-  gameId: string;
-  startingPrice: number;
-  currentMinWinningBid: number;
-}
 
 export default function PlaceBid({ 
     gameId, 
     startingPrice, 
     currentMinWinningBid, 
+    minBidIncrement
 }: PlaceBidProps) {
   // Use useSession hook for status only
   const { status } = useSession(); 
@@ -48,9 +52,9 @@ export default function PlaceBid({
 
   const minBidRequired = currentMinWinningBid <= startingPrice 
                           ? startingPrice 
-                          : currentMinWinningBid + 1;
+                          : currentMinWinningBid + minBidIncrement;
   
-  const bidSchema = createBidSchema(minBidRequired);
+  const bidSchema = createBidSchema(minBidRequired, startingPrice, minBidIncrement);
   type BidFormData = z.infer<typeof bidSchema>;
 
   // Only get needed methods/state from useForm
