@@ -20,6 +20,7 @@ interface TelegramContextType {
     linkedTelegramInfo: UserInfo | null;
     setLinkedTelegramInfo: (info: UserInfo | null) => void;
     isLoading: boolean;
+    setIsLoading: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 // Create the context with a default value
@@ -75,7 +76,7 @@ export const TelegramProvider: React.FC<TelegramProviderProps> = ({ children }) 
     // and updated directly by the login component after WS message.
 
     return (
-        <TelegramContext.Provider value={{ linkedTelegramInfo, setLinkedTelegramInfo, isLoading }}>
+        <TelegramContext.Provider value={{ linkedTelegramInfo, setLinkedTelegramInfo, isLoading, setIsLoading }}>
             {children}
         </TelegramContext.Provider>
     );

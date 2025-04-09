@@ -6,7 +6,7 @@ import { useTelegram } from '@/app/context/TelegramContext';
 import { apiClient } from '@/app/utils/api-client';
 import { toast } from 'react-hot-toast';
 import { ApiError } from '@/app/utils/api-client';
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@/app/components/ui/Button';
 import { Loader2 } from 'lucide-react';
 
 // Define type for user info received
