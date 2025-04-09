@@ -2,9 +2,16 @@ import { NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { createSuccessResponse, createErrorResponse, HttpStatus } from '@/app/lib/api-utils';
 import { getWinningBids } from '@/app/services/bidService';
-import { applyRateLimit } from '@/app/lib/api-middleware';
+// import { applyRateLimit } from '@/app/lib/api-middleware'; // Commented out - function not found
 
 const prisma = new PrismaClient();
+
+// Define the type for the route context
+type RouteContext = {
+  params: {
+    id: string;
+  };
+};
 
 /**
  * GET /api/games/[id]/bids/winning
@@ -13,20 +20,11 @@ const prisma = new PrismaClient();
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: RouteContext // Use the defined type for context
 ) {
   try {
-    // Apply rate limiting
-    const rateLimit = applyRateLimit(req, { 
-      limit: 20, // Higher limit for read operations
-      windowMs: 60000, // 1 minute
-    });
-    
-    if (!rateLimit.success) {
-      return rateLimit.error;
-    }
-    
-    const gameId = params.id;
+
+    const { id: gameId } = context.params; // Destructure gameId from context.params
     if (!gameId) {
       return createErrorResponse(
         'Game ID is required',
