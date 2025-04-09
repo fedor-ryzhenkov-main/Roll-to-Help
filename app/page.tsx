@@ -90,14 +90,6 @@ export default function HomePage() {
               </div>
             </a>
           </div>
-
-          <p className="mt-4 text-lg text-gray-600">
-            Присоединяйтесь к благотворительному аукциону настольных игр от клуба
-            <a href="https://vk.com/igroteka" target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:text-orange-800 font-semibold">
-               &quot;Игротека&quot;
-            </a>
-             в пользу фонда &quot;Добрый День&quot;.
-          </p>
         </div>
 
         {/* Bottom Button */}
