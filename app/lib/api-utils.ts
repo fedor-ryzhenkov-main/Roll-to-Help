@@ -103,6 +103,25 @@ export function logApiError(
   });
 }
 
+// Remove unused validateAuth function
+/*
+/**
+ * Validate authentication token
+ * /
+export function validateAuth(token: AuthToken | null): token is AuthToken {
+  if (!token) return false;
+  if (!token.id) return false;
+
+  // Check if token is expired (if exp is available and is a number)
+  if (token.exp && typeof token.exp === 'number' && Date.now() >= token.exp * 1000) {
+    console.warn('Auth token has expired');
+    return false;
+  }
+
+  return true;
+}
+*/
+
 /**
  * Sanitize user input to prevent XSS
  */
