@@ -1,21 +1,17 @@
 import Link from 'next/link';
 
-// In Next.js 15, the searchParams prop is a promise when the component is async
-type ErrorProps = {
+
+type ErrorPageProps = {
   searchParams?: { 
-    error?: string;
-    callbackUrl?: string;
-  } | Promise<{
-    error?: string;
-    callbackUrl?: string;
-  }>;
+    error?: string; 
+    callbackUrl?: string; 
+  };
 };
 
-export default async function AuthErrorPage({ searchParams }: ErrorProps) {
-  // Await searchParams to access its properties
-  const resolvedParams = await searchParams;
-  const error = resolvedParams?.error;
-  const callbackUrl = resolvedParams?.callbackUrl || '/';
+export default function AuthErrorPage({ searchParams }: ErrorPageProps) {
+
+  const error = searchParams?.error;
+  const callbackUrl = searchParams?.callbackUrl || '/';
   const errorMessage = getErrorMessage(error);
 
   return (
