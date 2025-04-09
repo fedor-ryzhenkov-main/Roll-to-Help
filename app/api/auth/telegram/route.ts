@@ -7,6 +7,8 @@
 import { NextResponse } from 'next/server';
 import { nanoid } from 'nanoid'; 
 import { addMinutes } from 'date-fns'; 
+import prisma from '@/app/lib/db';
+import { logApiError } from '@/app/lib/api-utils';
 
 function generateVerificationCode(length = 6): string {
   return nanoid(length).toUpperCase(); 
@@ -19,6 +21,15 @@ export async function POST() {
     const expires = addMinutes(new Date(), codeExpiresMinutes);
     const channelId = nanoid(16); 
 
+    // Create a record in the database to store the verification code
+    const pendingVerification = await prisma.pendingVerification.create({
+      data: {
+        verificationCode,
+        expires,
+        channelId,
+        isVerified: false
+      }
+    });
 
     console.log(`Generated verification code: ${verificationCode}, channelId: ${channelId}, expires: ${expires}`);
 
@@ -29,6 +40,8 @@ export async function POST() {
     });
   } catch (error) {
     console.error('Error generating verification code:', error);
+    logApiError('/api/auth/telegram', error);
+    
     if (error instanceof Error && 'code' in error && error.code === 'P2002') { 
          return NextResponse.json({ 
              success: false, 

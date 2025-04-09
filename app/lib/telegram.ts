@@ -127,10 +127,10 @@ function configureBot() {
 
         // --- Trigger Pusher Notification (Only on SUCCESS) --- 
         if (verificationResult.success && verificationResult.channelId && verificationResult.nextAuthToken && verificationResult.user) {
-          console.log(`[Telegram Handler] Verification success. Triggering Pusher for Channel: private-${verificationResult.channelId}`);
+          console.log(`[Telegram Handler] Verification success. Triggering Pusher for Channel: ${verificationResult.channelId}`);
           
           const pusherEvent = 'session-created'; // Event name must match client
-          const pusherChannel = `private-${verificationResult.channelId}`; // Channel name must match client
+          const pusherChannel = `${verificationResult.channelId}`; // Use public channel (no private- prefix)
           const pusherData = { 
               user: { 
                   id: verificationResult.user.id, 

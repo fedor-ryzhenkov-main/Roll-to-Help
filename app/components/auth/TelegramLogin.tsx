@@ -14,11 +14,10 @@ interface TelegramLoginProps {
   callbackUrl?: string;
 }
 
-// Define an interface for the expected data in the 'session-created' event
 interface SessionCreatedData {
   nextAuthToken?: string;
   error?: string;
-  user?: { // Include user if potentially sent, though not directly used now
+  user?: { 
     id: string;
     telegramFirstName?: string | null;
     telegramUsername?: string | null;
@@ -40,8 +39,8 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   useEffect(() => {
     return () => {
       if (pusherChannelRef.current && channelId) {
-        console.log(`[Pusher] Unsubscribing from channel: private-${channelId}`);
-        getPusherClient().unsubscribe(`private-${channelId}`);
+        console.log(`[Pusher] Unsubscribing from channel: ${channelId}`);
+        getPusherClient().unsubscribe(`${channelId}`); // Use non-private channel
         pusherChannelRef.current = null;
       }
     };
@@ -50,7 +49,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   useEffect(() => {
     if (channelId && verificationStatus === 'pending') {
       if (pusherChannelRef.current) {
-        console.warn(`[Pusher] Attempted to subscribe multiple times to private-${channelId}. Ignoring.`);
+        console.warn(`[Pusher] Attempted to subscribe multiple times to ${channelId}. Ignoring.`);
         return;
       }
 
@@ -62,7 +61,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
         return;
       }
 
-      const pusherChannelName = `private-${channelId}`;
+      const pusherChannelName = `${channelId}`;
       console.log(`[Pusher] Subscribing to channel: ${pusherChannelName}`);
 
       try {
@@ -159,8 +158,8 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
       setVerificationStatus('idle');
       
       if (pusherChannelRef.current && channelId) {
-        console.log(`[Pusher] Unsubscribing from previous channel: private-${channelId}`);
-        getPusherClient().unsubscribe(`private-${channelId}`);
+        console.log(`[Pusher] Unsubscribing from previous channel: ${channelId}`);
+        getPusherClient().unsubscribe(`${channelId}`);
         pusherChannelRef.current = null;
       }
       
