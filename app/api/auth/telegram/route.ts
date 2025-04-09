@@ -20,8 +20,7 @@ export async function POST() {
     const codeExpiresMinutes = 10; 
     const expires = addMinutes(new Date(), codeExpiresMinutes);
 
-    // Create a record in the database to store the verification code
-    const pendingVerification = await prisma.pendingVerification.create({
+    await prisma.pendingVerification.create({
       data: {
         verificationCode,
         expires,

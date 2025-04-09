@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/app/components/ui/Button';
 import { Loader2 } from 'lucide-react';
@@ -31,6 +31,49 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get('callbackUrl') || callbackUrl || '/';
+
+  // Handle sign-in with NextAuth token
+  const handleSignIn = useCallback(async (nextAuthToken: string) => {
+    setIsSigningIn(true);
+    setError(null);
+
+    try {
+      const signInResponse = await signIn('credentials', {
+        verificationToken: nextAuthToken,
+        redirect: false,
+      });
+
+      setIsSigningIn(false);
+
+      if (signInResponse?.error) {
+        console.error('[NextAuth SignIn Error]:', signInResponse.error);
+        setError(`Ошибка входа: ${signInResponse.error === 'CredentialsSignin' ? 'Неверный или истекший токен верификации.' : signInResponse.error}`);
+        setVerificationStatus('error');
+        toast.error('Ошибка входа. Попробуйте снова.');
+      } else if (signInResponse?.ok) {
+        console.log('[NextAuth SignIn Success]');
+        setVerificationStatus('success');
+        toast.success('Аккаунт успешно связан и вход выполнен!');
+
+        router.refresh();
+
+        console.log(`[TelegramLogin] Navigating to: ${returnUrl}`);
+        if (returnUrl !== '/link-telegram') {
+          router.push(returnUrl);
+        }
+      } else {
+        console.warn('[NextAuth SignIn] Unexpected response:', signInResponse);
+        setError('Произошла неожиданная ошибка при входе.');
+        setVerificationStatus('error');
+      }
+    } catch (signInError) {
+      setIsSigningIn(false);
+      console.error('[TelegramLogin] Critical error during signIn call:', signInError);
+      setError('Критическая ошибка при попытке входа.');
+      setVerificationStatus('error');
+      toast.error('Критическая ошибка входа.');
+    }
+  }, [router, returnUrl]);
 
   // Clean up polling interval on unmount
   useEffect(() => {
@@ -88,50 +131,7 @@ export default function TelegramLogin({ callbackUrl = '/' }: TelegramLoginProps)
         clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [verificationCode, verificationStatus, isSigningIn]);
-
-  // Handle sign-in with NextAuth token
-  const handleSignIn = async (nextAuthToken: string) => {
-    setIsSigningIn(true);
-    setError(null);
-
-    try {
-      const signInResponse = await signIn('credentials', {
-        verificationToken: nextAuthToken,
-        redirect: false,
-      });
-
-      setIsSigningIn(false);
-
-      if (signInResponse?.error) {
-        console.error('[NextAuth SignIn Error]:', signInResponse.error);
-        setError(`Ошибка входа: ${signInResponse.error === 'CredentialsSignin' ? 'Неверный или истекший токен верификации.' : signInResponse.error}`);
-        setVerificationStatus('error');
-        toast.error('Ошибка входа. Попробуйте снова.');
-      } else if (signInResponse?.ok) {
-        console.log('[NextAuth SignIn Success]');
-        setVerificationStatus('success');
-        toast.success('Аккаунт успешно связан и вход выполнен!');
-
-        router.refresh();
-
-        console.log(`[TelegramLogin] Navigating to: ${returnUrl}`);
-        if (returnUrl !== '/link-telegram') {
-          router.push(returnUrl);
-        }
-      } else {
-        console.warn('[NextAuth SignIn] Unexpected response:', signInResponse);
-        setError('Произошла неожиданная ошибка при входе.');
-        setVerificationStatus('error');
-      }
-    } catch (signInError) {
-      setIsSigningIn(false);
-      console.error('[TelegramLogin] Critical error during signIn call:', signInError);
-      setError('Критическая ошибка при попытке входа.');
-      setVerificationStatus('error');
-      toast.error('Критическая ошибка входа.');
-    }
-  };
+  }, [verificationCode, verificationStatus, isSigningIn, handleSignIn]);
   
   const handleGenerateCodeClick = async () => {
     if (isLoading || isSigningIn) return;
