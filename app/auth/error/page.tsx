@@ -1,17 +1,17 @@
 import Link from 'next/link';
 
-
 type ErrorPageProps = {
-  searchParams?: { 
-    error?: string; 
-    callbackUrl?: string; 
-  };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default function AuthErrorPage({ searchParams }: ErrorPageProps) {
 
-  const error = searchParams?.error;
-  const callbackUrl = searchParams?.callbackUrl || '/';
+  const errorParam = searchParams?.error;
+  const error = Array.isArray(errorParam) ? errorParam[0] : errorParam;
+
+  const callbackUrlParam = searchParams?.callbackUrl;
+  const callbackUrl = typeof callbackUrlParam === 'string' ? callbackUrlParam : '/';
+  
   const errorMessage = getErrorMessage(error);
 
   return (
