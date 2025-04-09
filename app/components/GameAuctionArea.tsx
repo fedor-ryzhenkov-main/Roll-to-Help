@@ -48,22 +48,37 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
 
   useEffect(() => {
     const gameId = gameData.id;
-    console.log(`[SSE] Setting up EventSource for game: ${gameId}`);
-    const eventSource = new EventSource(`/api/bids/stream?gameId=${gameId}`);
+    console.log(`[SSE Debug] Attempting to setup EventSource for game: ${gameId}`);
+    const eventSourceUrl = `/api/bids/stream?gameId=${gameId}`;
+    console.log(`[SSE Debug] Connecting to URL: ${eventSourceUrl}`);
+    
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(eventSourceUrl);
+    } catch (err) {
+        console.error(`[SSE Debug] Error creating EventSource instance:`, err);
+        return;
+    }
+    
+    console.log(`[SSE Debug] EventSource instance created.`);
 
     eventSource.onopen = () => {
-      console.log(`[SSE] Connection opened for game: ${gameId}`);
+      console.log(`[SSE] Connection opened successfully for game: ${gameId}`);
     };
 
     eventSource.addEventListener('new_bid', (event) => {
+      console.log(`[SSE Debug] Received event of type: ${event.type}`);
+      console.log(`[SSE Debug] Raw event data:`, event.data);
       try {
         const newBid = JSON.parse(event.data) as BidWithUser;
-        console.log('[SSE] Received new_bid event:', newBid);
+        console.log('[SSE] Parsed new_bid event data:', newBid);
 
         setGameData((prevData) => {
           if (prevData.bids.some(b => b.id === newBid.id)) {
+            console.log(`[SSE Debug] Bid ${newBid.id} already exists, skipping update.`);
             return prevData;
           }
+          console.log(`[SSE Debug] Adding new bid ${newBid.id} to state.`);
           const updatedBids = [...prevData.bids, newBid];
           return { ...prevData, bids: updatedBids };
         });
@@ -74,13 +89,22 @@ export default function GameAuctionArea({ initialGameData }: GameAuctionAreaProp
       }
     });
 
-    eventSource.onerror = (error) => {
-      console.error('[SSE] EventSource error:', error);
+    eventSource.onerror = (errorEvent) => {
+      console.error('[SSE] EventSource encountered an error:', errorEvent);
+      if (eventSource?.readyState === EventSource.CLOSED) {
+          console.warn('[SSE Debug] EventSource connection closed.');
+      } else if (eventSource?.readyState === EventSource.CONNECTING) {
+          console.warn('[SSE Debug] EventSource is attempting to reconnect...');
+      }
     };
 
     return () => {
-      console.log(`[SSE] Closing EventSource for game: ${gameId}`);
-      eventSource.close();
+      if (eventSource) {
+        console.log(`[SSE Debug] Cleaning up and closing EventSource for game: ${gameId}`);
+        eventSource.close();
+      } else {
+         console.log(`[SSE Debug] Cleanup called but eventSource was null.`);
+      }
     };
 
   }, [gameData.id]);
