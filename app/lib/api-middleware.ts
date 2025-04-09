@@ -38,11 +38,17 @@ export function setCsrfTokenCookie(response: NextResponse): NextResponse {
  */
 export function validateCsrfToken(req: NextRequest): CsrfValidationResult {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method.toUpperCase())) {
-    return { success: true }; 
+    return { success: true };
   }
 
   const headerToken = req.headers.get(CSRF_HEADER_NAME);
   const cookieToken = req.cookies.get(CSRF_COOKIE_NAME)?.value;
+
+  // --- Enhanced Logging ---
+  console.log('[CSRF Validation] Checking request:', req.method, req.nextUrl.pathname);
+  console.log(`[CSRF Validation] Header Token (${CSRF_HEADER_NAME}):`, headerToken ? `'${headerToken}'` : 'MISSING');
+  console.log(`[CSRF Validation] Cookie Token (${CSRF_COOKIE_NAME}):`, cookieToken ? `'${cookieToken}'` : 'MISSING');
+  // -----------------------
 
   if (!headerToken || !cookieToken) {
     console.warn('CSRF Validation Failed: Missing header or cookie token.');
@@ -53,17 +59,36 @@ export function validateCsrfToken(req: NextRequest): CsrfValidationResult {
   }
 
   try {
+    // Basic length check before Buffer conversion
+    if (headerToken.length !== cookieToken.length) {
+        console.warn('CSRF Validation Failed: Token lengths do not match.');
+        return {
+            success: false,
+            error: createErrorResponse(ErrorMessages.INVALID_CSRF_TOKEN, HttpStatus.FORBIDDEN)
+        };
+    }
+    
     const headerBuffer = Buffer.from(headerToken);
     const cookieBuffer = Buffer.from(cookieToken);
 
-    if (headerBuffer.length !== cookieBuffer.length || !timingSafeEqual(headerBuffer, cookieBuffer)) {
-      console.warn('CSRF Validation Failed: Tokens do not match.');
+    // Ensure buffers were created correctly and lengths still match (redundant but safe)
+     if (headerBuffer.length !== cookieBuffer.length) {
+        console.error('CSRF Validation Error: Buffer length mismatch after creation. This should not happen.');
+        return {
+            success: false,
+            error: createErrorResponse('Error processing CSRF token', HttpStatus.INTERNAL_SERVER_ERROR)
+        };
+     }
+
+    if (!timingSafeEqual(headerBuffer, cookieBuffer)) {
+      console.warn('CSRF Validation Failed: Tokens do not match (timingSafeEqual).');
       return {
         success: false,
         error: createErrorResponse(ErrorMessages.INVALID_CSRF_TOKEN, HttpStatus.FORBIDDEN)
       };
     }
-    
+
+    console.log('[CSRF Validation] Tokens matched successfully.');
     return { success: true };
 
   } catch (error) {
